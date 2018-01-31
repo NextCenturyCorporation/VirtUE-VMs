@@ -1,5 +1,3 @@
-# VirtUE-VMs
-
 1. A wrapper for GCC to disable PIE if compilation fails (see next steps)
 
 Copy cc_nopie to /usr/bin
@@ -10,7 +8,7 @@ git clone https://github.com/rumpkernel/rumprun
 
 git submodule update --init
 
-(This fetch additional source code from externals repos)
+(This fetches additional source code from external repos)
 
 3. Apply all necessary patches from rumprun-nfsd
 
