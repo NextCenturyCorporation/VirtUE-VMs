@@ -23,9 +23,11 @@ to clean up obj-amd64-xen and rumprun/rumprun-x86_64
 The same procedure through the wrapper script:
 CC=cc_nopie ./build-rr.sh xen
 
-5. You need set up network bridging in Xen. By default,
-NFS unikernel currently assumes IP address: 10.0.0.2 and
+5. You need to set up network bridging in Xen. By default,
+the NFS unikernel (currently) assumes IP address: 10.0.0.2 and
 netmask: 255.255.255.0.
 
 An example script for that is 'bridge.sh' which would normally
-be executed after Dom0 boot-up.
+be executed after Dom0 boot-up. Make sure to change the
+physical interface in the last line: --out-interface wlp3s0
+(e.g., specify your actual NIC interface such as eth0, wlp3s0, etc)
