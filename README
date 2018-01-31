@@ -1,0 +1,33 @@
+# VirtUE-VMs
+
+1. A wrapper for GCC to disable PIE if compilation fails (see next steps)
+
+Copy cc_nopie to /usr/bin
+
+2. Get rumprun source code
+
+git clone https://github.com/rumpkernel/rumprun
+
+git submodule update --init
+
+(This fetch additional source code from externals repos)
+
+3. Apply all necessary patches from rumprun-nfsd
+
+4. Compile rumprun (for Xen)
+
+CC=cc ./build-rr.sh xen
+
+If it fails, use the wrapper script (see above). Before that make sure
+to clean up obj-amd64-xen and rumprun/rumprun-x86_64
+(if they were already created by the previous step)
+
+The same procedure through the wrapper script:
+CC=cc_nopie ./build-rr.sh xen
+
+5. You need set up network bridging in Xen. By default,
+NFS unikernel currently assumes IP address: 10.0.0.2 and
+netmask: 255.255.255.0.
+
+An example script for that is 'bridge.sh' which would normally
+be executed after Dom0 boot-up.

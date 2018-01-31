@@ -1,0 +1,14 @@
+diff -urN rumprun.orig/app-tools/rumprun-bake.conf rumprun/app-tools/rumprun-bake.conf
+--- rumprun.orig/app-tools/rumprun-bake.conf	2018-01-30 18:09:38.519419357 -0500
++++ rumprun/app-tools/rumprun-bake.conf	2018-01-30 17:53:03.293792105 -0500
+@@ -64,8 +64,9 @@
+ conf _stdfs
+ 	create	"selection of file system drivers"
+ 	add	-lrumpfs_ffs			\
+-		-lrumpfs_cd9660			\
+ 		-lrumpfs_ext2fs			\
++		-lrumpfs_nfs			\
++		-lrumpfs_nfsserver		\
+ 		-lrumpdev_disk			\
+ 		-lrumpvfs
+ fnoc

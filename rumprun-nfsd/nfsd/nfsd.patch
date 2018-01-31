@@ -1,0 +1,274 @@
+diff -urN src.orig/mountd/mountd.c src/mountd/mountd.c
+--- src.orig/mountd/mountd.c	2015-12-23 11:19:49.000000000 -0500
++++ src/mountd/mountd.c	2017-12-05 13:11:15.225568575 -0500
+@@ -58,7 +58,14 @@
+ #include <rpc/rpc.h>
+ #include <rpc/pmap_clnt.h>
+ #include <rpc/pmap_prot.h>
++
++#ifdef RUMPRUN
++#include <pthread.h>
++#include "../mount.h"
++#else
+ #include <rpcsvc/mount.h>
++#endif
++
+ #include <nfs/rpcv2.h>
+ #include <nfs/nfsproto.h>
+ #include <nfs/nfs.h>
+@@ -101,12 +108,51 @@
+ #ifdef MOUNTD_RUMP
+ #include "svc_fdset.h"
+ #define DEBUGGING 1
++#elif defined(RUMPRUN)
++#define DEBUGGING 1
+ #else
+ #define DEBUGGING 0
+ #endif
+ 
+ #include "mountd.h"
+ 
++#ifdef RUMPRUN
++#define main mountd_main
++
++void * emalloc(size_t size)
++{
++	void * ptr = malloc(size);
++	if (!ptr) {
++		fprintf(stderr, "emalloc(): out of memory\n");
++		exit(1);
++	}
++	return ptr;
++}
++
++char * estrdup(const char * s)
++{
++	char * ptr = strdup(s);
++	if (!ptr) {
++		fprintf(stderr, "estrdup(): out of memory\n");
++		exit(1);
++	}
++	return ptr;
++}
++
++extern int nfsd_main(int argc, char **argv);
++
++static void * nfsd_thread(void * ptr)
++{
++	char * argv[2];
++	argv[0] = "nfsd";
++	argv[1] = NULL;
++	sleep(1);
++	printf("Starting nfsd...\n");
++	nfsd_main(1, argv);
++	return NULL;
++}
++#endif
++
+ /*
+  * Structures for keeping the mount list and export list
+  */
+@@ -347,6 +393,9 @@
+ 	int xcreated = 0;
+ 	int one = 1;
+ 	int maxrec = RPC_MAXDATASIZE;
++#ifdef RUMPRUN
++	pthread_t nfsd_tid;
++#endif
+ 	in_port_t forcedport = 0;
+ #ifdef IPSEC
+ 	char *policy = NULL;
+@@ -552,10 +601,20 @@
+ 		(void)signal(SIGINT, SIG_IGN);
+ 		(void)signal(SIGQUIT, SIG_IGN);
+ 	}
++#ifndef RUMPRUN
+ 	pidfile(NULL);
++#endif
+ #ifdef MOUNTD_RUMP
+ 	sem_post(&gensem);
+ #endif
++
++#ifdef RUMPRUN
++	if (pthread_create(&nfsd_tid, NULL, nfsd_thread, NULL)) {
++		fprintf(stderr, "Cannot create nfsd thread\n");
++		return 1;
++	}
++#endif
++
+ 	svc_run();
+ 	syslog(LOG_ERR, "Mountd died");
+ 	exit(1);
+diff -urN src.orig/mountd/pathnames.h src/mountd/pathnames.h
+--- src.orig/mountd/pathnames.h	2003-08-07 07:25:35.000000000 -0400
++++ src/mountd/pathnames.h	2017-12-05 13:12:44.162826911 -0500
+@@ -34,4 +34,9 @@
+ #include <paths.h>
+ 
+ #define	_PATH_EXPORTS		"/etc/exports"
++
++#ifdef RUMPRUN
++#define	_PATH_RMOUNTLIST	"/disk/var/db/mountdtab"
++#else
+ #define	_PATH_RMOUNTLIST	"/var/db/mountdtab"
++#endif
+diff -urN src.orig/mount.h src/mount.h
+--- src.orig/mount.h	1969-12-31 19:00:00.000000000 -0500
++++ src/mount.h	2017-12-05 13:01:15.657907507 -0500
+@@ -0,0 +1,9 @@
++#pragma once
++
++#define MOUNTPROC_NULL      0
++#define MOUNTPROC_MNT       1
++#define MOUNTPROC_DUMP      2
++#define MOUNTPROC_UMNT      3
++#define MOUNTPROC_UMNTALL   4
++#define MOUNTPROC_EXPORT    5
++#define MOUNTPROC_EXPORTALL 6
+diff -urN src.orig/nfsd/nfsd.c src/nfsd/nfsd.c
+--- src.orig/nfsd/nfsd.c	2016-08-23 09:10:12.000000000 -0400
++++ src/nfsd/nfsd.c	2017-12-05 12:54:57.639628962 -0500
+@@ -94,12 +94,15 @@
+ #define listen(a, b) rump_sys_listen((a), (b))
+ #define accept(a, b, c) rump_sys_accept((a), (b), (c))
+ #endif
++#endif
++
++#if defined(NFSD_RUMP) || defined(RUMPRUN)
+ #define main nfsd_main
+ int nfsd_main(int, char *[]);
+ #endif
+ 
+ /* Global defs */
+-#if defined(DEBUG) || defined(NFSD_RUMP)
++#if defined(DEBUG) || defined(NFSD_RUMP) || defined(RUMPRUN)
+ static int	debug = 1;
+ #else
+ static int	debug = 0;
+diff -urN src.orig/rpcbind/rpcbind.c src/rpcbind/rpcbind.c
+--- src.orig/rpcbind/rpcbind.c	2017-08-21 13:01:04.000000000 -0400
++++ src/rpcbind/rpcbind.c	2017-12-05 13:32:51.651166353 -0500
+@@ -74,6 +74,10 @@
+ #include <errno.h>
+ #include "rpcbind.h"
+ 
++#ifdef RUMPRUN
++#include <pthread.h>
++#endif
++
+ #ifdef RPCBIND_RUMP
+ #include <semaphore.h>
+ 
+@@ -84,6 +88,8 @@
+ 
+ extern sem_t gensem;
+ #define DEBUGGING 1
++#elif defined(RUMPRUN)
++#define DEBUGGING 1
+ #else
+ #define DEBUGGING 0
+ #endif
+@@ -137,6 +143,21 @@
+     struct netbuf *);
+ __dead static void terminate(int);
+ static void update_bound_sa(void);
++
++#ifdef RUMPRUN
++extern int mountd_main(int argc, char **argv);
++
++static void * mountd_thread(void * ptr)
++{
++	char * argv[2];
++	argv[0] = "mountd";
++	argv[1] = NULL;
++	printf("Starting mountd...\n");
++	mountd_main(1, argv);
++	return NULL;
++}
++#endif
++
+ #ifndef RPCBIND_RUMP
+ static void parseargs(int, char *[]);
+ 
+@@ -152,6 +173,11 @@
+ 	void *nc_handle;	/* Net config handle */
+ 	struct rlimit rl;
+ 	int maxrec = RPC_MAXDATASIZE;
++#ifdef RUMPRUN
++	pthread_t mountd_tid;
++
++	printf("Starting rpcbind...\n");
++#endif
+ 
+ #ifdef RPCBIND_RUMP
+ 	svc_fdset_init(SVC_FDSET_MT);
+@@ -241,7 +267,9 @@
+ 	}
+ 
+ 	openlog("rpcbind", 0, LOG_DAEMON);
++#ifndef RUMPRUN
+ 	pidfile(NULL);
++#endif
+ 
+ 	if (runasdaemon) {
+ 		struct passwd *p;
+@@ -261,6 +289,14 @@
+ #ifdef RPCBIND_RUMP
+ 	sem_post(&gensem);
+ #endif
++
++#ifdef RUMPRUN
++	if (pthread_create(&mountd_tid, NULL, mountd_thread, NULL)) {
++		fprintf(stderr, "Cannot create mountd thread\n");
++		return 1;
++	}
++#endif
++
+ 	my_svc_run();
+ 	syslog(LOG_ERR, "svc_run returned unexpectedly");
+ 	rpcbind_abort();
+diff -urN src.orig/rpcbind/rpcb_svc_com.c src/rpcbind/rpcb_svc_com.c
+--- src.orig/rpcbind/rpcb_svc_com.c	2017-08-16 04:44:40.000000000 -0400
++++ src/rpcbind/rpcb_svc_com.c	2017-12-05 13:33:37.368677882 -0500
+@@ -73,6 +73,11 @@
+ 
+ #define RPC_BUF_MAX	65536	/* can be raised if required */
+ 
++#ifdef RUMPRUN
++/* Not in xdr.h header. */
++#define xdr_u_int32(x,y) xdr_u_int32_t(x,y)
++#endif
++
+ static char nullstring[] = "";
+ static int rpcb_rmtcalls;
+ 
+diff -urN src.orig/rpcbind/security.c src/rpcbind/security.c
+--- src.orig/rpcbind/security.c	2017-08-16 04:44:40.000000000 -0400
++++ src/rpcbind/security.c	2017-12-05 13:35:36.752550529 -0500
+@@ -21,12 +21,21 @@
+ /*
+  * XXX for special case checks in check_callit.
+  */
++#ifndef RUMPRUN
+ #include <rpcsvc/mount.h>
+ #include <rpcsvc/rquota.h>
+ #include <rpcsvc/nfs_prot.h>
+ #include <rpcsvc/yp.h>
+ #include <rpcsvc/ypclnt.h>
+ #include <rpcsvc/yppasswd.h>
++#else
++#include "../mount.h"
++#include <rpcsvc/yp_prot.h>
++#define NFS_PROGRAM 100003
++#define MOUNTPROG 100005
++#define YPPASSWDPROG 100009
++#define RQUOTAPROG 100011
++#endif
+ 
+ #include "rpcbind.h"
+ 
+diff -urN src.orig/rpcbind/svc_dg.h src/rpcbind/svc_dg.h
+--- src.orig/rpcbind/svc_dg.h	1969-12-31 19:00:00.000000000 -0500
++++ src/rpcbind/svc_dg.h	2017-12-05 13:17:46.124378180 -0500
+@@ -0,0 +1 @@
++#include "../../../src-netbsd/lib/libc/rpc/svc_dg.h"
