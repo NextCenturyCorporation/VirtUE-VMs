@@ -1,8 +1,4 @@
-1. A wrapper for GCC to disable PIE if compilation fails (see next steps)
-
-Copy cc_nopie to /usr/bin
-
-2. Get rumprun source code
+1. Get rumprun source code
 
 git clone https://github.com/rumpkernel/rumprun
 
@@ -10,24 +6,31 @@ git submodule update --init
 
 (This fetches additional source code from external repos)
 
-3. Apply all necessary patches from rumprun-nfsd
+2. Apply all necessary patches from rumprun-nfsd
+
+[ Also replace build-rr.sh script with the one from this directory. ]
+
+If you hit a compiler error
+src-netbsd/sys/lib/libunwind/AddressSpace.hpp:143
+just replace (-1LL) with (uint64_t) (-1LL)
+
+3. You may also need to copy Xen headers if they were installed to
+/usr/local/include as follows:
+
+sudo cp -r /usr/local/include/xen/* /usr/include/xen/
 
 4. Compile rumprun (for Xen)
 
 CC=cc ./build-rr.sh xen
 
-If it fails, use the wrapper script (see above). Before that make sure
-to clean up obj-amd64-xen and rumprun/rumprun-x86_64
-(if they were already created by the previous step)
-
-The same procedure through the wrapper script:
-CC=cc_nopie ./build-rr.sh xen
-
 5. You need to set up network bridging in Xen. By default,
-the NFS unikernel (currently) assumes IP address: 10.0.0.2 and
+the NFS unikernel (currently) assumes IP address: 192.168.0.2 and
 netmask: 255.255.255.0.
 
 An example script for that is 'bridge.sh' which would normally
 be executed after Dom0 boot-up. Make sure to change the
 physical interface in the last line: --out-interface wlp3s0
 (e.g., specify your actual NIC interface such as eth0, wlp3s0, etc)
+
+6. For automatic start-up on Amazon Linux, see rc.local file.
+It needs to be placed to /etc/rc.d/rc.local
