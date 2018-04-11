@@ -149,11 +149,13 @@ extern int mountd_main(int argc, char **argv);
 
 static void * mountd_thread(void * ptr)
 {
-	char * argv[2];
+	char * argv[4];
 	argv[0] = "mountd";
-	argv[1] = NULL;
+	argv[1] = "-p"; /* Use port 5000 for mountd. */
+	argv[2] = "5000";
+	argv[3] = NULL;
 	printf("Starting mountd...\n");
-	mountd_main(1, argv);
+	mountd_main(3, argv);
 	return NULL;
 }
 #endif
