@@ -1,0 +1,21 @@
+#How to use
+
+1. Create domains
+	1.1 With specifying domain name and role
+		$./create.sh {DOM_NAME} {DOM_ROLE}
+
+	1.2 Without specifying domain name
+		$./create.sh (This will create a random domain name with default role)
+
+2. Remove domains
+NOTE: This is not "xl destroy" which destroys domains running on Xen. 
+So you should destroy domains with "xl destroy" first then remove domains.
+
+	2.1 Remove a specific domain
+		$./remove.sh {DOM_NAME}
+
+	2.2 Remove all domains
+		$./remove.sh all
+
+3. List domains
+	3.1 ./list.s
