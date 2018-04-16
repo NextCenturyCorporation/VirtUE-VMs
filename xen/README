@@ -1,0 +1,1 @@
+vif-bridge comments out handle_iptable. Update this script in /etc/xen/scripts

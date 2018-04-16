@@ -1,0 +1,50 @@
+#
+# Shorewall -- /etc/shorewall/params
+#
+# Assign any variables that you need here.
+#
+# It is suggested that variable names begin with an upper case letter
+# to distinguish them from variables used internally within the
+# Shorewall programs
+#
+# Example:
+#
+#	NET_IF=eth0
+#	NET_BCAST=130.252.100.255
+#	NET_OPTIONS=routefilter,norfc1918
+#
+# Example (/etc/shorewall/interfaces record):
+#
+#	net	$NET_IF		$NET_BCAST	$NET_OPTIONS
+#
+# The result will be the same as if the record had been written
+#
+#	net	eth0		130.252.100.255	routefilter,norfc1918
+#
+###############################################################################
+
+#############################
+# System Dependant Variables
+#############################
+INT_NET=eth0 # Interface that connects to the internet
+XEN_BR=xenbr0   # Name of the xen bridge
+NFS_SERVER=192.168.0.2
+
+#############################
+# Configuration Variables
+#############################
+NFS_PORTS=111,2049,5000
+
+KAFKA_PORTS=9555             # tcp kafka TLS 
+SENSING_HTTP_PORTS=17141     # tcp sensing api http
+SENSING_HTTPS_PORTS=17504    # tcp sensing api https/tls
+SENSOR_PORTS=11000:11100     # tcp sensor https actuation
+
+POP_SERVERS=pop.gmail.com,pop-mail.outlook.com
+POP_PORTS=110,995,110
+
+IMAP_SERVERS=imap.gmail.com,imap-mail.outlook.com
+IMAP_PORTS=143,993,585
+
+SMTP_SERVERS=smtp.gmail.com,smtp-mail.outlook.com
+SMTP_PORTS=465,587,25

@@ -1,0 +1,101 @@
+#
+# Shorewall - Sample Rules File for one-interface configuration.
+# Copyright (C) 2006-2014 by the Shorewall Team
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
+#
+# See the file README.txt for further details.
+#------------------------------------------------------------------------------------------------------------
+# For information on entries in this file, type "man shorewall-rules"
+######################################################################################################################################################################################################
+#ACTION		SOURCE		DEST		PROTO	DEST	SOURCE		ORIGINAL	RATE		USER/	MARK	CONNLIMIT	TIME		HEADERS		SWITCH		HELPER
+#							PORT	PORT(S)		DEST		LIMIT		GROUP
+?SECTION ALL
+?SECTION ESTABLISHED
+?SECTION RELATED
+?SECTION INVALID
+?SECTION UNTRACKED
+?SECTION NEW
+
+#############################
+# SSH
+#############################
+SSH(ACCEPT)	 net		$FW   # Allow SSH to DOM0
+SSH(ACCEPT)  $FW		xenbr # Allow SSH to DomUs from Dom0
+SSH(ACCEPT)  net		xenbr # Allow SSH to DomUs from external network, requested by next-century
+
+#############################
+# PING
+#############################
+Ping(ACCEPT) $FW        xenbr # Allow Dom0 to ping DomUs
+
+#############################
+# DNS
+#############################
+DNS(ACCEPT)  all        all   # Allow DNS
+
+#############################
+# Linux Corporate Email User - xeml
+#############################
+#### Web ####
+HTTP(ACCEPT)  xeml    all
+HTTPS(ACCEPT) xeml    all
+#### EMAIL ####
+ACCEPT  xeml          net     tcp     $POP_PORTS
+ACCEPT  xeml          net     tcp     $IMAP_PORTS
+ACCEPT  xeml          net     tcp     $SMTP_PORTS
+
+#############################
+# Linux Power User - xpow
+#############################
+#### Web ####
+HTTP(ACCEPT)  xpow    all
+HTTPS(ACCEPT) xpow    all
+#### EMAIL ####
+ACCEPT        xpow    net     tcp     $POP_PORTS
+ACCEPT        xpow    net     tcp     $IMAP_PORTS
+ACCEPT        xpow    net     tcp     $SMTP_PORTS
+#### FTP ####
+FTP(ACCEPT)   xpow    all
+#### SSH ####
+SSH(ACCEPT)   xpow    all
+
+#############################
+# Linux God Mode - xgod
+#############################
+
+
+#############################
+# These ports need to be open between all AWS instances and all VMs
+#############################
+ACCEPT all all tcp $KAFKA_PORTS
+ACCEPT all all tcp $SENSING_HTTP_PORTS
+ACCEPT all all tcp $SENSING_HTTPS_PORTS
+ACCEPT all all tcp $SENSOR_PORTS
+
+#############################
+# Access to NFS
+#############################
+ACCEPT  all     xenbr:$NFS_SERVER     tcp     $NFS_PORTS
+ACCEPT  all     xenbr:$NFS_SERVER     udp     $NFS_PORTS
+
+#############################
+# Port Forwarding for NFS
+#############################
+DNAT    net     xenbr:$NFS_SERVER     tcp     $NFS_PORTS
+DNAT    net     xenbr:$NFS_SERVER     udp     $NFS_PORTS
+
+# Drop packets in the INVALID state
+
+Invalid(DROP)  net    	        $FW		tcp
+
+# Drop Ping from the "bad" net zone.. and prevent your log from being flooded..
+
+Ping(DROP)	net		$FW
+
+# Permit all ICMP traffic FROM the firewall TO the net zone
+
+ACCEPT		$FW		net		icmp
