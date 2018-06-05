@@ -6,6 +6,6 @@
 
 touch /var/lock/subsys/local
 /home/ec2-user/bridge.sh
+service dhcpd start
 service xencommons start
-(cd /home/ec2-user/rumprun/dhcp-server && ./start.sh &)
 (cd /home/ec2-user/rumprun/nfsd && ./start.sh &)
