@@ -2,7 +2,7 @@
 
 import os, sys
 from polling import poll
-import dhcpd
+import opendhcpd
 
 '''
 Input: domain name
@@ -32,8 +32,8 @@ Input: domain mac address
 Output: domain ip address
 '''
 def getDomIp(mac):
-    leases = dhcpd.parse_leases_file()
-    return dhcpd.getIPForMac(leases, mac)
+    leases = opendhcpd.parse_leases_file()
+    return opendhcpd.getIPForMac(leases, mac)
 
 
 if __name__ == "__main__":
