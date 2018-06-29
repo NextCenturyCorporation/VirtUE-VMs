@@ -3,19 +3,24 @@ default=0
 timeout=0
 hiddenmenu
 
-title Xen 4.10.0
+title Xen 4.10.1
 root (hd0,0)
 kernel /boot/xen.gz dom0_mem=4096M,max:4096M
-module /boot/vmlinuz-4.9.76-3.78.amzn1.x86_64 root=LABEL=/ console=tty1 console=ttyS0 selinux=0 nvme_core.io_timeout=4294967295 LANG=en_US.UTF-8 KEYTABLE=us
-module /boot/initramfs-4.9.76-3.78.amzn1.x86_64.img
+module /boot/vmlinuz-4.14.51-60.38.amzn1.x86_64 root=LABEL=/ console=tty1 console=ttyS0 selinux=0 nvme_core.io_timeout=4294967295 LANG=en_US.UTF-8 KEYTABLE=us
+module /boot/initramfs-4.14.51-60.38.amzn1.x86_64.img
 
-title Amazon Linux 2017.09 (4.9.76-3.78.amzn1.x86_64)
+title Amazon Linux 2018.03 (4.14.51-60.38.amzn1.x86_64)
 root (hd0,0)
-kernel /boot/vmlinuz-4.9.76-3.78.amzn1.x86_64 root=LABEL=/ console=tty1 console=ttyS0 selinux=0 nvme_core.io_timeout=4294967295 LANG=en_US.UTF-8 KEYTABLE=us
-initrd /boot/initramfs-4.9.76-3.78.amzn1.x86_64.img
+kernel /boot/vmlinuz-4.14.51-60.38.amzn1.x86_64 root=LABEL=/ console=tty1 console=ttyS0 selinux=0 nvme_core.io_timeout=4294967295 LANG=en_US.UTF-8 KEYTABLE=us
+initrd /boot/initramfs-4.14.51-60.38.amzn1.x86_64.img
 
-title Amazon Linux 2017.09 (4.9.62-21.56.amzn1.x86_64)
+title Amazon Linux 2018.03 (4.14.47-56.37.amzn1.x86_64)
 root (hd0,0)
-kernel /boot/vmlinuz-4.9.62-21.56.amzn1.x86_64 root=LABEL=/ console=tty1 console=ttyS0 selinux=0 nvme_core.io_timeout=4294967295
-initrd /boot/initramfs-4.9.62-21.56.amzn1.x86_64.img
+kernel /boot/vmlinuz-4.14.47-56.37.amzn1.x86_64 root=LABEL=/ console=tty1 console=ttyS0 selinux=0 nvme_core.io_timeout=4294967295 LANG=en_US.UTF-8 KEYTABLE=us
+initrd /boot/initramfs-4.14.47-56.37.amzn1.x86_64.img
+
+title Amazon Linux 2018.03 (4.14.33-51.37.amzn1.x86_64)
+root (hd0,0)
+kernel /boot/vmlinuz-4.14.33-51.37.amzn1.x86_64 root=LABEL=/ console=tty1 console=ttyS0 selinux=0 nvme_core.io_timeout=4294967295
+initrd /boot/initramfs-4.14.33-51.37.amzn1.x86_64.img
 
