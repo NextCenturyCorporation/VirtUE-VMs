@@ -1,1 +1,6 @@
-vif-bridge comments out handle_iptable. Update this script in /etc/xen/scripts
+Comment out handle_iptable in /etc/xen/scripts/vif-bridge
+
+Also:
+cd /etc
+sudo patch -p1 < $CURDIR/sudoers.patch
+sudo cp $CURDIR/local.conf /etc/ld.so.conf.d/
