@@ -1,0 +1,12 @@
+diff -urN ../src-netbsd/sys/lib/libunwind/AddressSpace.hpp src-netbsd/sys/lib/libunwind/AddressSpace.hpp
+--- ../src-netbsd/sys/lib/libunwind/AddressSpace.hpp	2018-07-13 14:39:30.528353548 -0400
++++ src-netbsd/sys/lib/libunwind/AddressSpace.hpp	2018-07-13 14:39:57.524365484 -0400
+@@ -140,7 +140,7 @@
+     } while (byte >= 0x80);
+     // sign extend negative numbers
+     if ((byte & 0x40) != 0)
+-      result |= (-1LL) << bit;
++      result |= (uint64_t)(-1LL) << bit;
+     return result;
+   }
+ 
