@@ -14,4 +14,4 @@ service xencommons start
 
 # Start unikernels
 (cd /home/ec2-user/rumprun/nfsd && ./start.sh &)
-(cd /home/ec2-user/rumprun/virtue-dhcp-server && PATH="${PATH}:${RUMPRUN_PATH}" ./start.sh &)
+(cd /home/ec2-user/rumprun/dhcp-server && PATH="${PATH}:${RUMPRUN_PATH}" ./start.sh &)
