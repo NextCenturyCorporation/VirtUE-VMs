@@ -1,0 +1,13 @@
+diff --git a/app-tools/rumprun b/app-tools/rumprun
+index a5e1d5a..1468097 100644
+--- a/app-tools/rumprun
++++ b/app-tools/rumprun
+@@ -412,7 +412,7 @@ parse_blkspec ()
+ 
+ 	image="${spec%,*}"
+ 	[ -n "$image" ] || usage
+-	[ -f "$image" ] || die "File $image does not exist"
++	#[ -f "$image" ] || die "File $image does not exist"
+ 	mountpoint=$(echo "$spec" | sed -n 's/.*,\(.*\)/\1/p')
+ 
+ 	if [ -n "$mountpoint" ]; then
