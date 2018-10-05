@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-#  This role installs Puppet upon the new guest system.
+#  This role installs Python3 upon the new guest system.
 #
 #  It must make sure that the server is not running before it exits
 # otherwise the temporary mounted directory will not be unmountable.
