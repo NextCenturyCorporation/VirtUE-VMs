@@ -26,7 +26,7 @@ logMessage Script $0 starting
 #
 #  Install python3
 #
-installDebianPackage ${prefix} python3
+installDebianPackage ${prefix} python
 
 #
 #  Log our finish
