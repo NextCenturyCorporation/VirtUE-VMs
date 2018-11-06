@@ -6,6 +6,7 @@ INSTALLATION:
 
 cd rumprun
 patch -p1 < rumprun-bake-nfsd.patch
+patch -p1 < rumprun-persistent_storage.patch
 
 Also copy nfsd subdirectory to rumprun
 
