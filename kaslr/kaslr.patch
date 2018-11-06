@@ -1,0 +1,682 @@
+diff --git a/arch/x86/include/asm/arch_hweight.h b/arch/x86/include/asm/arch_hweight.h
+index 34a10b2d5..a9dcf1ff1 100644
+--- a/arch/x86/include/asm/arch_hweight.h
++++ b/arch/x86/include/asm/arch_hweight.h
+@@ -51,12 +51,19 @@ static inline unsigned long __arch_hweight64(__u64 w)
+ static __always_inline unsigned long __arch_hweight64(__u64 w)
+ {
+ 	unsigned long res;
++#ifdef PIC_MODULE
++	asm (ALTERNATIVE("call __sw_hweight64@plt", POPCNT64, X86_FEATURE_POPCNT)
++			 : "="REG_OUT (res)
++			 : REG_IN (w));
+ 
++	return res;
++#else
+ 	asm (ALTERNATIVE("call __sw_hweight64", POPCNT64, X86_FEATURE_POPCNT)
+ 			 : "="REG_OUT (res)
+ 			 : REG_IN (w));
+ 
+ 	return res;
++#endif
+ }
+ #endif /* CONFIG_X86_32 */
+ 
+diff --git a/arch/x86/kernel/module.c b/arch/x86/kernel/module.c
+index f58336af0..95d0ed9c6 100644
+--- a/arch/x86/kernel/module.c
++++ b/arch/x86/kernel/module.c
+@@ -97,6 +97,83 @@ void *module_alloc(unsigned long size)
+ 	return p;
+ }
+ 
++void module_reapply_relocations(struct module *mod, Elf64_Shdr *rel_shdr, unsigned long delta){
++	unsigned int i;
++	Elf64_Rela *rel = (void *)rel_shdr->sh_addr;
++	u64 *loc;
++
++//	printp(rel_shdr);
++
++	for (i = 0; i < rel_shdr->sh_size / sizeof(*rel); i++) {
++		loc = (u64 *)rel[i].r_offset;
++		INC_BY_DELTA(*loc, delta);
++	}
++}
++
++void update_fops(struct dentry *dentry, unsigned long delta);
++
++void module_relocate_update_kernel_pointers(struct module *mod, unsigned long delta){
++//	struct file_operations *fops;
++
++//	printp(mod);
++//	printk("Before: ");
++//	fops = (struct file_operations *) ((unsigned long)mod->file_dentry->d_fsdata & ~1LU);
++//	printp( fops->unlocked_ioctl );
++//	INC_BY_DELTA(mod->file_dentry->d_fsdata, delta);
++//	fops = (struct file_operations *) ((unsigned long)mod->file_dentry->d_fsdata & ~1LU);
++//	printp( fops->unlocked_ioctl );
++
++//	printp( mod->file_dentry->d_fsdata );
++//	printp( fops->owner );
++//	printp( fops->unlocked_ioctl );
++//
++//	printk("After: ");
++//	INC_BY_DELTA(fops->unlocked_ioctl, delta);
++//	printp( fops->owner );
++//	printp( fops->unlocked_ioctl );
++
++//	INC_BY_DELTA(mod->file_dentry->d_fsdata, delta);
++
++	update_fops( mod->file_dentry, delta );
++
++//	printk("module_reapply_relocations\n");
++	module_reapply_relocations(mod, &mod->rel_shdr, delta);
++}
++
++
++void update_module_ref(struct module *mod, unsigned long delta);
++
++void *module_relocate(struct module *mod){
++	unsigned long delta;
++	void *p;
++	unsigned long size = mod->core_layout.size;
++	unsigned long addr = mod->core_layout.base;
++
++//	printk("------ RELOCATE START ---------");
++
++	p = remap_module(addr, size, MODULE_ALIGN,
++				    MODULES_VADDR + get_module_load_offset(),
++				    MODULES_END, GFP_KERNEL,
++				    PAGE_KERNEL_EXEC, 0, NUMA_NO_NODE,
++				    __builtin_return_address(0));
++
++//	printk("Module -%s new address\n", mod->name);
++//	printp(p);
++
++	delta = (unsigned long)p - (unsigned long)addr;
++	printk("delta = %ld = %lu = 0x%lx\n", delta, delta, delta);
++
++	module_relocate_update_kernel_pointers(mod, delta);
++
++	// Update kernel's pointer to this module
++	update_module_ref(mod, delta);
++
++//	printk("------ RELOCATE END ---------");
++
++	return p;
++}
++EXPORT_SYMBOL_GPL(module_relocate);
++
+ #ifdef CONFIG_X86_32
+ int apply_relocate(Elf32_Shdr *sechdrs,
+ 		   const char *strtab,
+@@ -154,8 +231,12 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
+ 	       relsec, sechdrs[relsec].sh_info);
+ 	for (i = 0; i < sechdrs[relsec].sh_size / sizeof(*rel); i++) {
+ 		/* This is where to make the change */
+-		loc = (void *)sechdrs[sechdrs[relsec].sh_info].sh_addr
+-			+ rel[i].r_offset;
++		if(me->isSharedObject){
++			loc = (void *)rel[i].r_offset;
++		}else{
++			loc = (void *)sechdrs[sechdrs[relsec].sh_info].sh_addr
++						+ rel[i].r_offset;
++		}
+ 
+ 		/* This is the symbol it is referring to.  Note that all
+ 		   undefined symbols have been resolved.  */
+@@ -201,6 +282,16 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
+ 				goto overflow;
+ #endif
+ 			break;
++		case R_X86_64_JUMP_SLOT: // R_X86_64_JUMP_SLO
++			*(u64 *)loc = val;
++			break;
++		case R_X86_64_RELATIVE:
++//			printk("R_X86_64_RELATIVE encountered, hack may break\n");
++			*(u64 *)loc = (void *)sechdrs[1].sh_addr - sechdrs[1].sh_offset + rel[i].r_addend;// fixme  //hack
++			break;
++		case R_X86_64_GLOB_DAT:
++			*(u64 *)loc = val;
++			break;
+ 		default:
+ 			pr_err("%s: Unknown rela relocation: %llu\n",
+ 			       me->name, ELF64_R_TYPE(rel[i].r_info));
+diff --git a/drivers/net/ethernet/amazon/ena/Makefile b/drivers/net/ethernet/amazon/ena/Makefile
+index eaeeae06c..8ab13be75 100644
+--- a/drivers/net/ethernet/amazon/ena/Makefile
++++ b/drivers/net/ethernet/amazon/ena/Makefile
+@@ -1,7 +1,10 @@
+ #
+ # Makefile for the Elastic Network Adapter (ENA) device drivers.
+ #
++#  -fverbose-asm -g3
+ 
+ obj-$(CONFIG_ENA_ETHERNET) += ena.o
+ 
+-ena-y := ena_netdev.o ena_com.o ena_eth_com.o ena_ethtool.o
++ena-objs := ena_netdev.o ena_com.o ena_eth_com.o ena_ethtool.o
++# EXTRA_CFLAGS = -fPIC -mcmodel=small -fno-stack-protector -fvisibility=hidden -DPIC_MODULE  # -fverbose-asm -g3
++# EXTRA_CFLAGS = -fverbose-asm -g3
+diff --git a/drivers/net/ethernet/intel/e1000/Makefile b/drivers/net/ethernet/intel/e1000/Makefile
+index 4a6ab1522..92312ffc5 100644
+--- a/drivers/net/ethernet/intel/e1000/Makefile
++++ b/drivers/net/ethernet/intel/e1000/Makefile
+@@ -33,3 +33,4 @@
+ obj-$(CONFIG_E1000) += e1000.o
+ 
+ e1000-objs := e1000_main.o e1000_hw.o e1000_ethtool.o e1000_param.o
++# EXTRA_CFLAGS = -fPIC -mcmodel=small -fno-stack-protector -fvisibility=hidden
+diff --git a/fs/debugfs/file.c b/fs/debugfs/file.c
+index 1f99678ff..c113199f9 100644
+--- a/fs/debugfs/file.c
++++ b/fs/debugfs/file.c
+@@ -62,6 +62,21 @@ const struct file_operations *debugfs_real_fops(const struct file *filp)
+ }
+ EXPORT_SYMBOL_GPL(debugfs_real_fops);
+ 
++void update_fops(struct dentry *dentry, unsigned long delta){
++	struct debugfs_fsdata *fsd = dentry->d_fsdata;
++
++
++//	if(fsd->real_fops) printp( fsd->real_fops->unlocked_ioctl );
++
++	if ((unsigned long)fsd & DEBUGFS_FSDATA_IS_REAL_FOPS_BIT) {
++		printk("fops update 1\n");
++		INC_BY_DELTA(fsd, delta);
++	}else{
++		printk("fops update 2\n");
++		INC_BY_DELTA(fsd->real_fops, delta);
++	}
++}
++
+ /**
+  * debugfs_file_get - mark the beginning of file data access
+  * @dentry: the dentry object whose data is being accessed.
+@@ -183,6 +198,8 @@ static ret_type full_proxy_ ## name(proto)				\
+ 	if (unlikely(r))						\
+ 		return r;						\
+ 	real_fops = debugfs_real_fops(filp);				\
++	printp( &real_fops ); \
++	printp( real_fops->name ); \
+ 	r = real_fops->name(args);					\
+ 	debugfs_file_put(dentry);					\
+ 	return r;							\
+diff --git a/include/linux/module.h b/include/linux/module.h
+index d44df9b2c..33a79ec11 100644
+--- a/include/linux/module.h
++++ b/include/linux/module.h
+@@ -260,7 +260,7 @@ extern typeof(name) __mod_##type##__##name##_device_table		\
+ 
+ struct notifier_block;
+ 
+-#ifdef CONFIG_MODULES
++#ifndef CONFIG_MODULES_ABC
+ 
+ extern int modules_disabled; /* for sysctl */
+ /* Get/put a kernel symbol (calls must be symmetric) */
+@@ -481,6 +481,9 @@ struct module {
+ 	struct error_injection_entry *ei_funcs;
+ 	unsigned int num_ei_funcs;
+ #endif
++	int isSharedObject;
++	struct dentry *file_dentry;
++	Elf64_Shdr rel_shdr;
+ } ____cacheline_aligned __randomize_layout;
+ #ifndef MODULE_ARCH_INIT
+ #define MODULE_ARCH_INIT {}
+diff --git a/include/linux/printk.h b/include/linux/printk.h
+index e9b603ee9..3c507e7b4 100644
+--- a/include/linux/printk.h
++++ b/include/linux/printk.h
+@@ -523,4 +523,8 @@ static inline void print_hex_dump_debug(const char *prefix_str, int prefix_type,
+ }
+ #endif
+ 
++#define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
++#define printp(x) printk("(%s.%03d): " #x " = 0x%lx\n", __FILENAME__, __LINE__, (unsigned long)(x))
++#define INC_BY_DELTA(x, delta) ( x = (typeof((x))) ((unsigned long)(x) + (unsigned long)(delta)) )
++
+ #endif
+diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+index 1e5d8c392..3872566a1 100644
+--- a/include/linux/vmalloc.h
++++ b/include/linux/vmalloc.h
+@@ -205,4 +205,9 @@ pcpu_free_vm_areas(struct vm_struct **vms, int nr_vms)
+ int register_vmap_purge_notifier(struct notifier_block *nb);
+ int unregister_vmap_purge_notifier(struct notifier_block *nb);
+ 
++void *remap_module(unsigned long addr, unsigned long size, unsigned long align,
++		unsigned long start, unsigned long end, gfp_t gfp_mask,
++		pgprot_t prot, unsigned long vm_flags, int node,
++		const void *caller);
++
+ #endif /* _LINUX_VMALLOC_H */
+diff --git a/kernel/module.c b/kernel/module.c
+index e42764ace..007d583a4 100644
+--- a/kernel/module.c
++++ b/kernel/module.c
+@@ -74,6 +74,8 @@
+ #define ARCH_SHF_SMALL 0
+ #endif
+ 
++#define isSharedObject(info) (info->hdr->e_type == ET_DYN)
++
+ /*
+  * Modules' sections will be aligned on page boundaries
+  * to ensure complete separation of code and data, but
+@@ -845,6 +847,7 @@ static int add_module_usage(struct module *a, struct module *b)
+ {
+ 	struct module_use *use;
+ 
++	printk("add_usage: %s\t%s\n", a->name, b->name);
+ 	pr_debug("Allocating new usage for %s.\n", a->name);
+ 	use = kmalloc(sizeof(*use), GFP_ATOMIC);
+ 	if (!use)
+@@ -975,6 +978,8 @@ SYSCALL_DEFINE2(delete_module, const char __user *, name_user,
+ 
+ 	audit_log_kern_module(name);
+ 
++	printk("delete_module: %s\n", name);
++
+ 	if (mutex_lock_interruptible(&module_mutex) != 0)
+ 		return -EINTR;
+ 
+@@ -1028,8 +1033,10 @@ SYSCALL_DEFINE2(delete_module, const char __user *, name_user,
+ 	strlcpy(last_unloaded_module, mod->name, sizeof(last_unloaded_module));
+ 
+ 	free_module(mod);
++	printk("delete_module passed\n");
+ 	return 0;
+ out:
++	printk("delete_module err\n");
+ 	mutex_unlock(&module_mutex);
+ 	return ret;
+ }
+@@ -2321,7 +2328,7 @@ static int apply_relocations(struct module *mod, const struct load_info *info)
+ 			continue;
+ 
+ 		/* Don't bother with non-allocated sections */
+-		if (!(info->sechdrs[infosec].sh_flags & SHF_ALLOC))
++		if (!(info->sechdrs[infosec].sh_flags & SHF_ALLOC) && infosec != 0) //fixme
+ 			continue;
+ 
+ 		/* Livepatch relocation sections are applied by livepatch */
+@@ -2331,9 +2338,15 @@ static int apply_relocations(struct module *mod, const struct load_info *info)
+ 		if (info->sechdrs[i].sh_type == SHT_REL)
+ 			err = apply_relocate(info->sechdrs, info->strtab,
+ 					     info->index.sym, i, mod);
+-		else if (info->sechdrs[i].sh_type == SHT_RELA)
++		else if (info->sechdrs[i].sh_type == SHT_RELA){
+ 			err = apply_relocate_add(info->sechdrs, info->strtab,
+ 						 info->index.sym, i, mod);
++//			printk("---------%s\n", info->secstrings + info->sechdrs[i].sh_name);
++			if( strstarts(info->secstrings + info->sechdrs[i].sh_name, ".relahxn") ){
++//				printk("MEMCOPIED RELA SECTION\n");
++				memcpy(&mod->rel_shdr, &info->sechdrs[i], sizeof(mod->rel_shdr));
++			}
++		}
+ 		if (err < 0)
+ 			break;
+ 	}
+@@ -2381,7 +2394,7 @@ static void layout_sections(struct module *mod, struct load_info *info)
+ 	for (i = 0; i < info->hdr->e_shnum; i++)
+ 		info->sechdrs[i].sh_entsize = ~0UL;
+ 
+-	pr_debug("Core section allocation order:\n");
++//	printk("Core section allocation order:\n");
+ 	for (m = 0; m < ARRAY_SIZE(masks); ++m) {
+ 		for (i = 0; i < info->hdr->e_shnum; ++i) {
+ 			Elf_Shdr *s = &info->sechdrs[i];
+@@ -2393,8 +2406,9 @@ static void layout_sections(struct module *mod, struct load_info *info)
+ 			    || strstarts(sname, ".init"))
+ 				continue;
+ 			s->sh_entsize = get_offset(mod, &mod->core_layout.size, s, i);
+-			pr_debug("\t%s\n", sname);
++//			printk("\t%u=%s\t\t\t%p\t(%u)\n", i,sname,info->sechdrs[i].sh_addr,m);
+ 		}
++//		printk("----------\n");
+ 		switch (m) {
+ 		case 0: /* executable */
+ 			mod->core_layout.size = debug_align(mod->core_layout.size);
+@@ -2414,7 +2428,7 @@ static void layout_sections(struct module *mod, struct load_info *info)
+ 		}
+ 	}
+ 
+-	pr_debug("Init section allocation order:\n");
++//	printk("Init section allocation order:\n");
+ 	for (m = 0; m < ARRAY_SIZE(masks); ++m) {
+ 		for (i = 0; i < info->hdr->e_shnum; ++i) {
+ 			Elf_Shdr *s = &info->sechdrs[i];
+@@ -2427,7 +2441,7 @@ static void layout_sections(struct module *mod, struct load_info *info)
+ 				continue;
+ 			s->sh_entsize = (get_offset(mod, &mod->init_layout.size, s, i)
+ 					 | INIT_OFFSET_MASK);
+-			pr_debug("\t%s\n", sname);
++//			printk("\t%u=%s\t\t(%u)\n", i,sname,m);
+ 		}
+ 		switch (m) {
+ 		case 0: /* executable */
+@@ -2807,8 +2821,10 @@ static int elf_header_check(struct load_info *info)
+ 	if (info->len < sizeof(*(info->hdr)))
+ 		return -ENOEXEC;
+ 
++	if(info->hdr->e_type == ET_DYN) printk("Loading Relocatable Module\n");
++
+ 	if (memcmp(info->hdr->e_ident, ELFMAG, SELFMAG) != 0
+-	    || info->hdr->e_type != ET_REL
++	    || !(info->hdr->e_type == ET_REL || info->hdr->e_type == ET_DYN) // allow .so module to be loaded
+ 	    || !elf_check_arch(info->hdr)
+ 	    || info->hdr->e_shentsize != sizeof(Elf_Shdr))
+ 		return -ENOEXEC;
+@@ -2908,6 +2924,7 @@ static void free_copy(struct load_info *info)
+ static int rewrite_section_headers(struct load_info *info, int flags)
+ {
+ 	unsigned int i;
++	int rel_i, sec_i;
+ 
+ 	/* This should always be true, but let's be sure. */
+ 	info->sechdrs[0].sh_addr = 0;
+@@ -2920,6 +2937,29 @@ static int rewrite_section_headers(struct load_info *info, int flags)
+ 			return -ENOEXEC;
+ 		}
+ 
++
++		// New Code Start
++		if(info->hdr->e_type == ET_DYN){
++			for (sec_i = 1; sec_i < info->hdr->e_shnum; sec_i++) {
++				unsigned int infosec = info->sechdrs[sec_i].sh_info;
++				if( info->sechdrs[sec_i].sh_type != SHT_RELA ||
++					(infosec >= info->hdr->e_shnum)  ||
++					(!(info->sechdrs[infosec].sh_flags & SHF_ALLOC) && infosec != 0) ||
++					(info->sechdrs[sec_i].sh_flags & SHF_RELA_LIVEPATCH)){
++					// Not valid relocation table
++				}else{
++					Elf64_Rela *rel =  (size_t)info->hdr + info->sechdrs[sec_i].sh_offset;
++					for (rel_i = 0; rel_i < info->sechdrs[sec_i].sh_size / sizeof(*rel); rel_i++) {
++						if(shdr->sh_addr <= rel[rel_i].r_offset && (shdr->sh_addr + shdr->sh_size) > rel[rel_i].r_offset){
++							long offset_sec_start = rel[rel_i].r_offset - shdr->sh_addr;
++							rel[rel_i].r_offset = ((size_t)info->hdr + shdr->sh_offset) + offset_sec_start;
++						}
++					}
++				}
++			}
++		}
++		// New Code End
++
+ 		/* Mark all sections sh_addr with their address in the
+ 		   temporary image. */
+ 		shdr->sh_addr = (size_t)info->hdr + shdr->sh_offset;
+@@ -2973,7 +3013,7 @@ static struct module *setup_load_info(struct load_info *info, int flags)
+ 
+ 	/* Find internal symbols and strings. */
+ 	for (i = 1; i < info->hdr->e_shnum; i++) {
+-		if (info->sechdrs[i].sh_type == SHT_SYMTAB) {
++		if (info->sechdrs[i].sh_type == ((info->hdr->e_type == ET_DYN)?SHT_DYNSYM:SHT_SYMTAB)) {
+ 			info->index.sym = i;
+ 			info->index.str = info->sechdrs[i].sh_link;
+ 			info->strtab = (char *)info->hdr
+@@ -3148,7 +3188,7 @@ static int find_module_sections(struct module *mod, struct load_info *info)
+ 
+ static int move_module(struct module *mod, struct load_info *info)
+ {
+-	int i;
++	int i,j;
+ 	void *ptr;
+ 
+ 	/* Do the allocs. */
+@@ -3183,6 +3223,9 @@ static int move_module(struct module *mod, struct load_info *info)
+ 	} else
+ 		mod->init_layout.base = NULL;
+ 
++	pr_debug("mod->core_layout.base = 0x%lx\n", mod->core_layout.base);
++	pr_debug("mod->init_layout.base = 0x%lx\n", mod->init_layout.base);
++
+ 	/* Transfer each section which specifies SHF_ALLOC */
+ 	pr_debug("final section addresses:\n");
+ 	for (i = 0; i < info->hdr->e_shnum; i++) {
+@@ -3201,6 +3244,31 @@ static int move_module(struct module *mod, struct load_info *info)
+ 		if (shdr->sh_type != SHT_NOBITS)
+ 			memcpy(dest, (void *)shdr->sh_addr, shdr->sh_size);
+ 		/* Update sh_addr to point to copy in image. */
++		{
++			int rel_i, sec_i;
++
++			// New Code Start
++			if(info->hdr->e_type == ET_DYN){
++				for (sec_i = 1; sec_i < info->hdr->e_shnum; sec_i++) {
++					unsigned int infosec = info->sechdrs[sec_i].sh_info;
++					if( info->sechdrs[sec_i].sh_type != SHT_RELA ||
++						(infosec >= info->hdr->e_shnum)  ||
++						(!(info->sechdrs[infosec].sh_flags & SHF_ALLOC) && infosec != 0) ||
++						(info->sechdrs[sec_i].sh_flags & SHF_RELA_LIVEPATCH)){
++						// Not valid relocation table
++					}else{
++						Elf64_Rela *rel = (void *)info->sechdrs[sec_i].sh_addr;
++						for (rel_i = 0; rel_i < info->sechdrs[sec_i].sh_size / sizeof(*rel); rel_i++) {
++							if(shdr->sh_addr <= rel[rel_i].r_offset && (shdr->sh_addr + shdr->sh_size) > rel[rel_i].r_offset){
++								long offset_sec_start = rel[rel_i].r_offset - shdr->sh_addr;
++								rel[rel_i].r_offset = (unsigned long)dest + offset_sec_start;
++							}
++						}
++					}
++				}
++			}
++			// New Code End
++		}
+ 		shdr->sh_addr = (unsigned long)dest;
+ 		pr_debug("\t0x%lx %s\n",
+ 			 (long)shdr->sh_addr, info->secstrings + shdr->sh_name);
+@@ -3302,6 +3370,50 @@ static bool blacklisted(const char *module_name)
+ }
+ core_param(module_blacklist, module_blacklist, charp, 0400);
+ 
++
++// Should be called before section headers are rewritten
++int make_symbols_relative(struct load_info *info){
++	info->sechdrs = (void *)info->hdr + info->hdr->e_shoff;
++	Elf_Shdr *symsec;
++	Elf_Sym *sym;
++	Elf_Shdr *shdr;
++	unsigned int i;
++	int j = 0;
++
++
++	// SHT_DYNSYM | SHT_SYMTAB
++	// Find Symbol Section
++	for (i = 1; i < info->hdr->e_shnum; i++) {
++		if (info->sechdrs[i].sh_type == SHT_DYNSYM) {
++			symsec = &info->sechdrs[i];
++			sym = (void *)info->hdr + symsec->sh_offset;
++			break;
++		}
++	}
++
++	printk("---------START Making Symbols Relative\n");
++
++	for (i = 1; i < symsec->sh_size / sizeof(Elf_Sym); i++) {
++		switch (sym[i].st_shndx) {
++		case SHN_COMMON:
++		case SHN_ABS:
++		case SHN_LIVEPATCH:
++		case SHN_UNDEF:
++			break;
++		default:
++//			if(ELF64_ST_TYPE(sym[i].st_info) == STT_FUNC) continue;
++			shdr = &info->sechdrs[sym[i].st_shndx];// + (unsigned long)info->hdr;
++//			printk("Symbol Val = 0x%lx -> 0x%lx\n", sym[i].st_value, (sym[i].st_value - shdr->sh_addr));
++			sym[i].st_value -= shdr->sh_addr;
++			break;
++		}
++	}
++
++	printk("---------STOP Making Symbols Relative\n");
++
++	return 0;
++}
++
+ static struct module *layout_and_allocate(struct load_info *info, int flags)
+ {
+ 	/* Module within temporary copy. */
+@@ -3309,10 +3421,17 @@ static struct module *layout_and_allocate(struct load_info *info, int flags)
+ 	unsigned int ndx;
+ 	int err;
+ 
++	if(info->hdr->e_type == ET_DYN){
++		make_symbols_relative(info);
++//		return ERR_PTR(-EPERM); // fixme
++	}
++
+ 	mod = setup_load_info(info, flags);
+ 	if (IS_ERR(mod))
+ 		return mod;
+ 
++	mod->isSharedObject = (info->hdr->e_type == ET_DYN);
++
+ 	if (blacklisted(info->name))
+ 		return ERR_PTR(-EPERM);
+ 
+@@ -3351,6 +3470,9 @@ static struct module *layout_and_allocate(struct load_info *info, int flags)
+ 
+ 	/* Module has been copied to its final place now: return it. */
+ 	mod = (void *)info->sechdrs[info->index.mod].sh_addr;
++
++	mod->isSharedObject = (info->hdr->e_type == ET_DYN);
++
+ 	kmemleak_load_module(mod, info);
+ 	return mod;
+ }
+@@ -3458,8 +3580,12 @@ static noinline int do_init_module(struct module *mod)
+ 
+ 	do_mod_ctors(mod);
+ 	/* Start the module */
+-	if (mod->init != NULL)
++	if (mod->init != NULL){
++//		printk("%s: Module init call\n", mod->name);
+ 		ret = do_one_initcall(mod->init);
++	}else{
++		printk("Module has no init function\n");
++	}
+ 	if (ret < 0) {
+ 		goto fail_free_freeinit;
+ 	}
+@@ -3551,6 +3677,43 @@ static int may_init_module(void)
+ 	return 0;
+ }
+ 
++// Refer to add_unformed_module() and free_module() for inspiration, locks stuff etc
++void update_module_ref(struct module *mod, unsigned long delta){
++	struct module_use *use;
++	bool source_list_empty = list_empty(&mod->source_list);
++	bool target_list_empty = list_empty(&mod->target_list);
++
++	list_del_rcu(&mod->list);
++	mod_tree_remove(mod);
++
++	INC_BY_DELTA(mod->core_layout.base, delta);
++	INC_BY_DELTA(mod, delta);
++
++	mod_update_bounds(mod);
++	list_add_rcu(&mod->list, &modules);
++	mod_tree_insert(mod);
++	synchronize_sched();
++
++	/* Update source_list and target_list */
++	if ( source_list_empty ){
++		INIT_LIST_HEAD(&mod->source_list);
++	}else{
++		printk("update_module_ref - UNTESTED\n");
++		list_for_each_entry(use, &mod->source_list, source_list) {
++			INC_BY_DELTA(use->target, delta);
++		}
++	}
++
++	if( target_list_empty ){
++		INIT_LIST_HEAD(&mod->target_list);
++	}else{
++		printk("update_module_ref - UNTESTED\n");
++		list_for_each_entry(use, &mod->target_list, target_list) {
++			INC_BY_DELTA(use->source, delta);
++		}
++	}
++}
++
+ /*
+  * We try to place it in the list now to make sure it's unique before
+  * we dedicate too many resources.  In particular, temporary percpu
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index ebff729cc..01b7c7b4c 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -2776,3 +2776,71 @@ module_init(proc_vmalloc_init);
+ 
+ #endif
+ 
++// __vmalloc_area_node
++static void *remap_area(struct vm_struct *area, struct vm_struct *old_area, gfp_t gfp_mask,
++				 pgprot_t prot, int node)
++{
++	area->nr_pages = old_area->nr_pages;
++	area->pages = old_area->pages;
++
++	if (map_vm_area(area, prot, old_area->pages))
++		goto fail;
++	return area->addr;
++
++fail:
++	printk("ERR: Fail in remap_hxn_2\n");
++	return NULL;
++}
++
++// __vmalloc_node_range
++void *remap_module(unsigned long addr, unsigned long size, unsigned long align,
++		unsigned long start, unsigned long end, gfp_t gfp_mask,
++		pgprot_t prot, unsigned long vm_flags, int node,
++		const void *caller)
++{
++	struct vmap_area *va;
++	struct vm_struct *area;
++	struct vm_struct *old_area;
++	void *addr_new;
++
++	va = find_vmap_area(addr);
++	if(va == NULL){
++		printk("vmap_area is null");
++		goto fail;
++	}
++	old_area = va->vm;
++
++	size = PAGE_ALIGN(size);
++	if (!size || (size >> PAGE_SHIFT) > totalram_pages)
++		goto fail;
++
++	area = __get_vm_area_node(size, align, VM_ALLOC | VM_UNINITIALIZED |
++				vm_flags, start, end, node, gfp_mask, caller);
++	if (!area)
++		goto fail;
++
++	addr_new = remap_area(area, old_area, gfp_mask, prot, node);
++	if (!addr_new)
++
++
++//	printp(area->addr);
++//	printk("%lu\n", area->size);
++//	printk("%u\n", area->nr_pages);
++//
++//	printp(va->va_start);
++//	printp(va->va_end);
++//	printp(va->vm->addr);
++//	printk("%lu\n", va->vm->size);
++//	printk("%u\n", va->vm->nr_pages);
++
++	clear_vm_uninitialized_flag(area);
++
++	return addr_new;
++
++	fail:
++		printk("ERR: Fail in remap_hxn\n");
++		return NULL;
++}
++
++
++EXPORT_SYMBOL(remap_module);

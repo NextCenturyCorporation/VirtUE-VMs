@@ -1,0 +1,15 @@
+diff --git a/drivers/net/ethernet/amazon/ena/ena_netdev.c b/drivers/net/ethernet/amazon/ena/ena_netdev.c
+index 6975150d1..4fbdf43e4 100644
+--- a/drivers/net/ethernet/amazon/ena/ena_netdev.c
++++ b/drivers/net/ethernet/amazon/ena/ena_netdev.c
+@@ -3528,8 +3528,10 @@ static struct pci_driver ena_pci_driver = {
+ 	.sriov_configure = ena_sriov_configure,
+ };
+ 
++PIC_PV_OPS_DEF();
+ static int __init ena_init(void)
+ {
++	PIC_PV_OPS_INT();
+ 	pr_info("%s", version);
+ 
+ 	ena_wq = create_singlethread_workqueue(DRV_MODULE_NAME);

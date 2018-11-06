@@ -1,0 +1,94 @@
+diff --git a/arch/x86/include/asm/paravirt_types.h b/arch/x86/include/asm/paravirt_types.h
+index 180bc0bff..0c8af97df 100644
+--- a/arch/x86/include/asm/paravirt_types.h
++++ b/arch/x86/include/asm/paravirt_types.h
+@@ -326,6 +326,15 @@ struct paravirt_patch_template {
+ 	struct pv_lock_ops pv_lock_ops;
+ } __no_randomize_layout;
+ 
++
++extern struct pv_info pic_pv_info __attribute__ ((visibility("hidden")));
++extern struct pv_init_ops pic_pv_init_ops __attribute__ ((visibility("hidden")));
++extern struct pv_time_ops pic_pv_time_ops __attribute__ ((visibility("hidden")));
++extern struct pv_cpu_ops pic_pv_cpu_ops __attribute__ ((visibility("hidden")));
++extern struct pv_irq_ops pic_pv_irq_ops __attribute__ ((visibility("hidden")));
++extern struct pv_mmu_ops pic_pv_mmu_ops __attribute__ ((visibility("hidden")));
++extern struct pv_lock_ops pic_pv_lock_ops __attribute__ ((visibility("hidden")));
++
+ extern struct pv_info pv_info;
+ extern struct pv_init_ops pv_init_ops;
+ extern struct pv_time_ops pv_time_ops;
+@@ -334,12 +343,34 @@ extern struct pv_irq_ops pv_irq_ops;
+ extern struct pv_mmu_ops pv_mmu_ops;
+ extern struct pv_lock_ops pv_lock_ops;
+ 
++#define PIC_PV_OPS_DEF() 														\
++	struct pv_time_ops pic_pv_time_ops __attribute__ ((visibility("hidden")));	\
++	struct pv_cpu_ops pic_pv_cpu_ops __attribute__ ((visibility("hidden")));	\
++	struct pv_irq_ops pic_pv_irq_ops __attribute__ ((visibility("hidden")));	\
++	struct pv_mmu_ops pic_pv_mmu_ops __attribute__ ((visibility("hidden")));	\
++	struct pv_lock_ops pic_pv_lock_ops __attribute__ ((visibility("hidden")))	\
++
++#define PIC_PV_OPS_INT()			\
++	do{							\
++	pic_pv_time_ops = pv_time_ops;	\
++	pic_pv_cpu_ops = pv_cpu_ops;	\
++	pic_pv_irq_ops = pv_irq_ops;	\
++	pic_pv_mmu_ops = pv_mmu_ops;	\
++	pic_pv_lock_ops = pv_lock_ops;	\
++	}while(0)						\
++
+ #define PARAVIRT_PATCH(x)					\
+ 	(offsetof(struct paravirt_patch_template, x) / sizeof(void *))
+ 
+-#define paravirt_type(op)				\
++#ifdef PIC_MODULE
++# define paravirt_type(op)				\
++	[paravirt_typenum] "i" (PARAVIRT_PATCH(op)),	\
++	[paravirt_opptr] "i" (&(pic_##op))
++#else
++# define paravirt_type(op)				\
+ 	[paravirt_typenum] "i" (PARAVIRT_PATCH(op)),	\
+ 	[paravirt_opptr] "i" (&(op))
++#endif
+ #define paravirt_clobber(clobber)		\
+ 	[paravirt_clobber] "i" (clobber)
+ 
+@@ -347,7 +378,11 @@ extern struct pv_lock_ops pv_lock_ops;
+  * Generate some code, and mark it as patchable by the
+  * apply_paravirt() alternate instruction patcher.
+  */
+-#define _paravirt_alt(insn_string, type, clobber)	\
++#ifdef PIC_MODULE
++# define _paravirt_alt(insn_string, type, clobber)	\
++	insn_string "\n"
++#else
++# define _paravirt_alt(insn_string, type, clobber)	\
+ 	"771:\n\t" insn_string "\n" "772:\n"		\
+ 	".pushsection .parainstructions,\"a\"\n"	\
+ 	_ASM_ALIGN "\n"					\
+@@ -356,6 +391,7 @@ extern struct pv_lock_ops pv_lock_ops;
+ 	"  .byte 772b-771b\n"				\
+ 	"  .short " clobber "\n"			\
+ 	".popsection\n"
++#endif
+ 
+ /* Generate patchable code, with the default asm parameters. */
+ #define paravirt_alt(insn_string)					\
+@@ -393,9 +429,15 @@ int paravirt_disable_iospace(void);
+  * offset into the paravirt_patch_template structure, and can therefore be
+  * freely converted back into a structure offset.
+  */
+-#define PARAVIRT_CALL					\
++#ifdef PIC_MODULE
++# define PARAVIRT_CALL					\
++	ANNOTATE_RETPOLINE_SAFE				\
++	"call *%c[paravirt_opptr](%%rip);"
++#else
++# define PARAVIRT_CALL					\
+ 	ANNOTATE_RETPOLINE_SAFE				\
+ 	"call *%c[paravirt_opptr];"
++#endif
+ 
+ /*
+  * These macros are intended to wrap calls through one of the paravirt
