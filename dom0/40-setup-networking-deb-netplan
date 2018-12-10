@@ -57,6 +57,8 @@ network:
   ethernets:
     eth0:
       dhcp4: true
+      nameservers:
+        addresses: [10.0.0.2]
 E_O_DHCP
 }
 
