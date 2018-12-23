@@ -1,229 +1,236 @@
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 5852d3cd..3f1440eb 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -2238,6 +2238,12 @@ config X86_PIE
- 	select DYNAMIC_MODULE_BASE
- 	select MODULE_REL_CRCS if MODVERSIONS
+diff -urN linux-4.18.20/arch/x86/crypto/aes-x86_64-asm_64.S linux-4.18.20-new/arch/x86/crypto/aes-x86_64-asm_64.S
+--- linux-4.18.20/arch/x86/crypto/aes-x86_64-asm_64.S	2018-12-10 01:04:12.992606671 -0500
++++ linux-4.18.20-new/arch/x86/crypto/aes-x86_64-asm_64.S	2018-12-23 13:02:22.469702762 -0500
+@@ -17,6 +17,7 @@
  
-+config X86_PIC
-+	bool
-+	depends on X86_64
-+	default y
-+	select MODULE_REL_CRCS if MODVERSIONS
-+
- config RANDOMIZE_BASE_LARGE
- 	bool "Increase the randomization range of the kernel image"
- 	depends on X86_64 && RANDOMIZE_BASE
-diff --git a/arch/x86/Makefile b/arch/x86/Makefile
-index 881bf431..fc8346ba 100644
---- a/arch/x86/Makefile
-+++ b/arch/x86/Makefile
-@@ -136,6 +136,11 @@ else
-         KBUILD_CFLAGS += $(cflags-y)
+ #include <linux/linkage.h>
+ #include <asm/asm-offsets.h>
++#include <asm/asm.h>
  
-         KBUILD_CFLAGS += -mno-red-zone
-+
-+ifdef CONFIG_X86_PIC
-+        KBUILD_CFLAGS_MODULE += -fPIC -mcmodel=small -fno-stack-protector -fvisibility=hidden
-+endif
-+
- ifdef CONFIG_X86_PIE
-         KBUILD_CFLAGS += -fPIE
-         KBUILD_LDFLAGS_MODULE += -T $(srctree)/arch/x86/kernel/module.lds
-diff --git a/arch/x86/crypto/aes-x86_64-asm_64.S b/arch/x86/crypto/aes-x86_64-asm_64.S
-index 86fa068e..0aaaa627 100644
---- a/arch/x86/crypto/aes-x86_64-asm_64.S
-+++ b/arch/x86/crypto/aes-x86_64-asm_64.S
-@@ -82,12 +82,20 @@
- 	ret;				\
+ #define R1	%rax
+ #define R1E	%eax
+@@ -83,11 +84,11 @@
  	ENDPROC(FUNC);
  
-+#if defined(MODULE) && defined(CONFIG_X86_PIC)
-+# define tab_off_load(tab_off)	\
-+	movq	tab_off@GOTPCREL(%rip), RBASE;
-+#else
-+# define tab_off_load(tab_off)	\
-+	leaq	tab_off(%rip), RBASE;
-+#endif
-+
  #define round_mov(tab_off, reg_i, reg_o) \
 -	leaq	tab_off(%rip), RBASE; \
-+	tab_off_load(tab_off);		 \
++	_ASM_LEA_RIP(tab_off, RBASE);	\
  	movl	(RBASE,reg_i,4), reg_o;
  
  #define round_xor(tab_off, reg_i, reg_o) \
 -	leaq	tab_off(%rip), RBASE; \
-+	tab_off_load(tab_off);		 \
++	_ASM_LEA_RIP(tab_off, RBASE);	\
  	xorl	(RBASE,reg_i,4), reg_o;
  
  #define round(TAB,OFFSET,r1,r2,r3,r4,r5,r6,r7,r8,ra,rb,rc,rd) \
-diff --git a/arch/x86/crypto/cast5-avx-x86_64-asm_64.S b/arch/x86/crypto/cast5-avx-x86_64-asm_64.S
-index 64eb5c87..219d363f 100644
---- a/arch/x86/crypto/cast5-avx-x86_64-asm_64.S
-+++ b/arch/x86/crypto/cast5-avx-x86_64-asm_64.S
-@@ -97,19 +97,27 @@
- #define RFS3d %r10d
+diff -urN linux-4.18.20/arch/x86/crypto/cast5-avx-x86_64-asm_64.S linux-4.18.20-new/arch/x86/crypto/cast5-avx-x86_64-asm_64.S
+--- linux-4.18.20/arch/x86/crypto/cast5-avx-x86_64-asm_64.S	2018-12-10 01:04:12.992606671 -0500
++++ linux-4.18.20-new/arch/x86/crypto/cast5-avx-x86_64-asm_64.S	2018-12-23 13:02:22.469702762 -0500
+@@ -25,6 +25,7 @@
  
+ #include <linux/linkage.h>
+ #include <asm/frame.h>
++#include <asm/asm.h>
  
-+#if defined(MODULE) && defined(CONFIG_X86_PIC)
-+# define sbox_load(sbox,id)	\
-+	movq	sbox@GOTPCREL(%rip), id;
-+#else
-+# define sbox_load(sbox,id)	\
-+	leaq	sbox(%rip), id;
-+#endif
-+
+ .file "cast5-avx-x86_64-asm_64.S"
+ 
+@@ -99,17 +100,17 @@
+ 
  #define lookup_32bit(src, dst, op1, op2, op3, interleave_op, il_reg) \
  	movzbl		src ## bh,       RID1d;    \
 -	leaq		s1(%rip),        RID2;     \
-+	sbox_load(s1, RID2);                       \
++	_ASM_LEA_RIP(s1, RID2);                    \
  	movl		(RID2, RID1, 4), dst ## d; \
  	movzbl		src ## bl,       RID2d;    \
 -	leaq		s2(%rip),        RID1;     \
-+	sbox_load(s2, RID1);                       \
++	_ASM_LEA_RIP(s2, RID1);                    \
  	op1		(RID1, RID2, 4), dst ## d; \
  	shrq $16,	src;                       \
  	movzbl		src ## bh,     RID1d;      \
 -	leaq		s3(%rip),        RID2;     \
-+	sbox_load(s3, RID2);                       \
++	_ASM_LEA_RIP(s3, RID2);                    \
  	op2		(RID2, RID1, 4), dst ## d; \
  	movzbl		src ## bl,     RID2d;      \
 -	leaq		s4(%rip),        RID1;     \
-+	sbox_load(s4, RID1);                       \
++	_ASM_LEA_RIP(s4, RID1);                    \
  	op3		(RID1, RID2, 4), dst ## d; \
  	interleave_op(il_reg);
  
-diff --git a/arch/x86/crypto/cast6-avx-x86_64-asm_64.S b/arch/x86/crypto/cast6-avx-x86_64-asm_64.S
-index da1b7e4a..392972ee 100644
---- a/arch/x86/crypto/cast6-avx-x86_64-asm_64.S
-+++ b/arch/x86/crypto/cast6-avx-x86_64-asm_64.S
-@@ -97,19 +97,27 @@
- #define RFS3d %r10d
+diff -urN linux-4.18.20/arch/x86/crypto/cast6-avx-x86_64-asm_64.S linux-4.18.20-new/arch/x86/crypto/cast6-avx-x86_64-asm_64.S
+--- linux-4.18.20/arch/x86/crypto/cast6-avx-x86_64-asm_64.S	2018-12-10 01:04:12.992606671 -0500
++++ linux-4.18.20-new/arch/x86/crypto/cast6-avx-x86_64-asm_64.S	2018-12-23 13:02:22.469702762 -0500
+@@ -25,6 +25,7 @@
  
+ #include <linux/linkage.h>
+ #include <asm/frame.h>
++#include <asm/asm.h>
+ #include "glue_helper-asm-avx.S"
  
-+#if defined(MODULE) && defined(CONFIG_X86_PIC)
-+# define sbox_load(sbox,id)	\
-+	movq	sbox@GOTPCREL(%rip), id;
-+#else
-+# define sbox_load(sbox,id)	\
-+	leaq	sbox(%rip), id;
-+#endif
-+
+ .file "cast6-avx-x86_64-asm_64.S"
+@@ -99,17 +100,17 @@
+ 
  #define lookup_32bit(src, dst, op1, op2, op3, interleave_op, il_reg) \
  	movzbl		src ## bh,       RID1d;    \
 -	leaq		s1(%rip),        RID2;     \
-+	sbox_load(s1, RID2);                       \
++	_ASM_LEA_RIP(s1, RID2);                    \
  	movl		(RID2, RID1, 4), dst ## d; \
  	movzbl		src ## bl,       RID2d;    \
 -	leaq		s2(%rip),        RID1;     \
-+	sbox_load(s2, RID1);                       \
++	_ASM_LEA_RIP(s2, RID1);                    \
  	op1		(RID1, RID2, 4), dst ## d; \
  	shrq $16,	src;                       \
  	movzbl		src ## bh,     RID1d;      \
 -	leaq		s3(%rip),        RID2;     \
-+	sbox_load(s3, RID2);                       \
++	_ASM_LEA_RIP(s3, RID2);                    \
  	op2		(RID2, RID1, 4), dst ## d; \
  	movzbl		src ## bl,     RID2d;      \
 -	leaq		s4(%rip),        RID1;     \
-+	sbox_load(s4, RID1);                       \
++	_ASM_LEA_RIP(s4, RID1);                    \
  	op3		(RID1, RID2, 4), dst ## d; \
  	interleave_op(il_reg);
  
-diff --git a/arch/x86/crypto/sha1-mb/sha1_mb_mgr_flush_avx2.S b/arch/x86/crypto/sha1-mb/sha1_mb_mgr_flush_avx2.S
-index 7cfba738..719eae57 100644
---- a/arch/x86/crypto/sha1-mb/sha1_mb_mgr_flush_avx2.S
-+++ b/arch/x86/crypto/sha1-mb/sha1_mb_mgr_flush_avx2.S
-@@ -183,7 +183,7 @@ LABEL skip_ %I
+diff -urN linux-4.18.20/arch/x86/crypto/sha1-mb/sha1_mb_mgr_flush_avx2.S linux-4.18.20-new/arch/x86/crypto/sha1-mb/sha1_mb_mgr_flush_avx2.S
+--- linux-4.18.20/arch/x86/crypto/sha1-mb/sha1_mb_mgr_flush_avx2.S	2018-12-10 01:04:12.992606671 -0500
++++ linux-4.18.20-new/arch/x86/crypto/sha1-mb/sha1_mb_mgr_flush_avx2.S	2018-12-23 13:02:22.469702762 -0500
+@@ -53,6 +53,7 @@
+  */
+ #include <linux/linkage.h>
+ #include <asm/frame.h>
++#include <asm/asm.h>
+ #include "sha1_mb_mgr_datastruct.S"
+ 
+ 
+@@ -183,7 +184,7 @@
  
  	# "state" and "args" are the same address, arg1
  	# len is arg2
 -	call	sha1_x8_avx2
-+	call	sha1_x8_avx2@PLT
++	_ASM_CALL(sha1_x8_avx2)
  	# state and idx are intact
  
  
-diff --git a/arch/x86/crypto/sha1-mb/sha1_mb_mgr_submit_avx2.S b/arch/x86/crypto/sha1-mb/sha1_mb_mgr_submit_avx2.S
-index 7a93b1c0..c2b31ce0 100644
---- a/arch/x86/crypto/sha1-mb/sha1_mb_mgr_submit_avx2.S
-+++ b/arch/x86/crypto/sha1-mb/sha1_mb_mgr_submit_avx2.S
-@@ -163,7 +163,7 @@ start_loop:
+diff -urN linux-4.18.20/arch/x86/crypto/sha1-mb/sha1_mb_mgr_submit_avx2.S linux-4.18.20-new/arch/x86/crypto/sha1-mb/sha1_mb_mgr_submit_avx2.S
+--- linux-4.18.20/arch/x86/crypto/sha1-mb/sha1_mb_mgr_submit_avx2.S	2018-12-10 01:04:12.992606671 -0500
++++ linux-4.18.20-new/arch/x86/crypto/sha1-mb/sha1_mb_mgr_submit_avx2.S	2018-12-23 13:02:22.473702887 -0500
+@@ -54,6 +54,7 @@
+ 
+ #include <linux/linkage.h>
+ #include <asm/frame.h>
++#include <asm/asm.h>
+ #include "sha1_mb_mgr_datastruct.S"
+ 
+ 
+@@ -163,7 +164,7 @@
  
  	# "state" and "args" are the same address, arg1
  	# len is arg2
 -	call    sha1_x8_avx2
-+	call    sha1_x8_avx2@PLT
++	_ASM_CALL(sha1_x8_avx2)
  
  	# state and idx are intact
  
-diff --git a/arch/x86/crypto/sha256-mb/sha256_mb_mgr_flush_avx2.S b/arch/x86/crypto/sha256-mb/sha256_mb_mgr_flush_avx2.S
-index d2364c55..16da7ddd 100644
---- a/arch/x86/crypto/sha256-mb/sha256_mb_mgr_flush_avx2.S
-+++ b/arch/x86/crypto/sha256-mb/sha256_mb_mgr_flush_avx2.S
-@@ -181,7 +181,7 @@ LABEL skip_ %I
+diff -urN linux-4.18.20/arch/x86/crypto/sha256-mb/sha256_mb_mgr_flush_avx2.S linux-4.18.20-new/arch/x86/crypto/sha256-mb/sha256_mb_mgr_flush_avx2.S
+--- linux-4.18.20/arch/x86/crypto/sha256-mb/sha256_mb_mgr_flush_avx2.S	2018-12-10 01:04:12.992606671 -0500
++++ linux-4.18.20-new/arch/x86/crypto/sha256-mb/sha256_mb_mgr_flush_avx2.S	2018-12-23 13:02:22.473702887 -0500
+@@ -52,6 +52,7 @@
+  */
+ #include <linux/linkage.h>
+ #include <asm/frame.h>
++#include <asm/asm.h>
+ #include "sha256_mb_mgr_datastruct.S"
+ 
+ .extern sha256_x8_avx2
+@@ -181,7 +182,7 @@
  
  	# "state" and "args" are the same address, arg1
  	# len is arg2
 -	call	sha256_x8_avx2
-+	call	sha256_x8_avx2@PLT
++	_ASM_CALL(sha256_x8_avx2)
  	# state and idx are intact
  
  len_is_0:
-diff --git a/arch/x86/crypto/sha256-mb/sha256_mb_mgr_submit_avx2.S b/arch/x86/crypto/sha256-mb/sha256_mb_mgr_submit_avx2.S
-index b36ae745..4ad7f329 100644
---- a/arch/x86/crypto/sha256-mb/sha256_mb_mgr_submit_avx2.S
-+++ b/arch/x86/crypto/sha256-mb/sha256_mb_mgr_submit_avx2.S
-@@ -164,7 +164,7 @@ start_loop:
+diff -urN linux-4.18.20/arch/x86/crypto/sha256-mb/sha256_mb_mgr_submit_avx2.S linux-4.18.20-new/arch/x86/crypto/sha256-mb/sha256_mb_mgr_submit_avx2.S
+--- linux-4.18.20/arch/x86/crypto/sha256-mb/sha256_mb_mgr_submit_avx2.S	2018-12-10 01:04:12.992606671 -0500
++++ linux-4.18.20-new/arch/x86/crypto/sha256-mb/sha256_mb_mgr_submit_avx2.S	2018-12-23 13:02:22.473702887 -0500
+@@ -53,6 +53,7 @@
+ 
+ #include <linux/linkage.h>
+ #include <asm/frame.h>
++#include <asm/asm.h>
+ #include "sha256_mb_mgr_datastruct.S"
+ 
+ .extern sha256_x8_avx2
+@@ -164,7 +165,7 @@
  
  	# "state" and "args" are the same address, arg1
  	# len is arg2
 -	call	sha256_x8_avx2
-+	call	sha256_x8_avx2@PLT
++	_ASM_CALL(sha256_x8_avx2)
  
  	# state and idx are intact
  
-diff --git a/arch/x86/crypto/sha512-mb/sha512_mb_mgr_flush_avx2.S b/arch/x86/crypto/sha512-mb/sha512_mb_mgr_flush_avx2.S
-index 7c629cae..dbc1ffdf 100644
---- a/arch/x86/crypto/sha512-mb/sha512_mb_mgr_flush_avx2.S
-+++ b/arch/x86/crypto/sha512-mb/sha512_mb_mgr_flush_avx2.S
-@@ -177,7 +177,7 @@ LABEL skip_ %I
+diff -urN linux-4.18.20/arch/x86/crypto/sha512-mb/sha512_mb_mgr_flush_avx2.S linux-4.18.20-new/arch/x86/crypto/sha512-mb/sha512_mb_mgr_flush_avx2.S
+--- linux-4.18.20/arch/x86/crypto/sha512-mb/sha512_mb_mgr_flush_avx2.S	2018-12-10 01:04:12.992606671 -0500
++++ linux-4.18.20-new/arch/x86/crypto/sha512-mb/sha512_mb_mgr_flush_avx2.S	2018-12-23 13:02:22.473702887 -0500
+@@ -53,6 +53,7 @@
+ 
+ #include <linux/linkage.h>
+ #include <asm/frame.h>
++#include <asm/asm.h>
+ #include "sha512_mb_mgr_datastruct.S"
+ 
+ .extern sha512_x4_avx2
+@@ -177,7 +178,7 @@
  
          # "state" and "args" are the same address, arg1
          # len is arg2
 -        call    sha512_x4_avx2
-+        call    sha512_x4_avx2@PLT
++	_ASM_CALL(sha512_x4_avx2)
          # state and idx are intact
  
  len_is_0:
-diff --git a/arch/x86/crypto/sha512-mb/sha512_mb_mgr_submit_avx2.S b/arch/x86/crypto/sha512-mb/sha512_mb_mgr_submit_avx2.S
-index 4ba709ba..afa41fbf 100644
---- a/arch/x86/crypto/sha512-mb/sha512_mb_mgr_submit_avx2.S
-+++ b/arch/x86/crypto/sha512-mb/sha512_mb_mgr_submit_avx2.S
-@@ -167,7 +167,7 @@ start_loop:
+diff -urN linux-4.18.20/arch/x86/crypto/sha512-mb/sha512_mb_mgr_submit_avx2.S linux-4.18.20-new/arch/x86/crypto/sha512-mb/sha512_mb_mgr_submit_avx2.S
+--- linux-4.18.20/arch/x86/crypto/sha512-mb/sha512_mb_mgr_submit_avx2.S	2018-12-10 01:04:12.992606671 -0500
++++ linux-4.18.20-new/arch/x86/crypto/sha512-mb/sha512_mb_mgr_submit_avx2.S	2018-12-23 13:02:22.473702887 -0500
+@@ -53,6 +53,7 @@
+ 
+ #include <linux/linkage.h>
+ #include <asm/frame.h>
++#include <asm/asm.h>
+ #include "sha512_mb_mgr_datastruct.S"
+ 
+ .extern sha512_x4_avx2
+@@ -167,7 +168,7 @@
  
  	# "state" and "args" are the same address, arg1
  	# len is arg2
 -	call    sha512_x4_avx2
-+	call    sha512_x4_avx2@PLT
++	_ASM_CALL(sha512_x4_avx2)
  	# state and idx are intact
  
  len_is_0:
-diff --git a/arch/x86/include/asm/alternative.h b/arch/x86/include/asm/alternative.h
-index 4cd6a3b7..51101a1e 100644
---- a/arch/x86/include/asm/alternative.h
-+++ b/arch/x86/include/asm/alternative.h
-@@ -208,7 +208,7 @@ static inline int alternatives_text_reserved(void *start, void *end)
+diff -urN linux-4.18.20/arch/x86/include/asm/alternative.h linux-4.18.20-new/arch/x86/include/asm/alternative.h
+--- linux-4.18.20/arch/x86/include/asm/alternative.h	2018-12-10 01:04:12.996606714 -0500
++++ linux-4.18.20-new/arch/x86/include/asm/alternative.h	2018-12-23 13:02:22.477703012 -0500
+@@ -207,8 +207,8 @@
+ 
  /* Like alternative_io, but for replacing a direct call with another one. */
  #define alternative_call(oldfunc, newfunc, feature, output, input...)	\
- 	asm volatile (ALTERNATIVE("call %P[old]", "call %P[new]", feature) \
+-	asm volatile (ALTERNATIVE("call %P[old]", "call %P[new]", feature) \
 -		: output : [old] "i" (oldfunc), [new] "i" (newfunc), ## input)
++	asm volatile (ALTERNATIVE(_ASM_CALL(%p[old]), _ASM_CALL(%p[new]), feature) \
 +		: output : [old] "X" (oldfunc), [new] "X" (newfunc), ## input)
  
  /*
   * Like alternative_call, but there are two features and respective functions.
-@@ -221,8 +221,8 @@ static inline int alternatives_text_reserved(void *start, void *end)
- 	asm volatile (ALTERNATIVE_2("call %P[old]", "call %P[new1]", feature1,\
- 		"call %P[new2]", feature2)				      \
+@@ -218,11 +218,11 @@
+  */
+ #define alternative_call_2(oldfunc, newfunc1, feature1, newfunc2, feature2,   \
+ 			   output, input...)				      \
+-	asm volatile (ALTERNATIVE_2("call %P[old]", "call %P[new1]", feature1,\
+-		"call %P[new2]", feature2)				      \
++	asm volatile (ALTERNATIVE_2(_ASM_CALL(%p[old]), _ASM_CALL(%p[new1]), feature1,\
++		_ASM_CALL(%p[new2]), feature2)				      \
  		: output, ASM_CALL_CONSTRAINT				      \
 -		: [old] "i" (oldfunc), [new1] "i" (newfunc1),		      \
 -		  [new2] "i" (newfunc2), ## input)
@@ -232,80 +239,129 @@ index 4cd6a3b7..51101a1e 100644
  
  /*
   * use this macro(s) if you need more than one output parameter
-diff --git a/arch/x86/include/asm/arch_hweight.h b/arch/x86/include/asm/arch_hweight.h
-index 34a10b2d..0289ba3c 100644
---- a/arch/x86/include/asm/arch_hweight.h
-+++ b/arch/x86/include/asm/arch_hweight.h
-@@ -24,7 +24,7 @@ static __always_inline unsigned int __arch_hweight32(unsigned int w)
+diff -urN linux-4.18.20/arch/x86/include/asm/arch_hweight.h linux-4.18.20-new/arch/x86/include/asm/arch_hweight.h
+--- linux-4.18.20/arch/x86/include/asm/arch_hweight.h	2018-12-10 01:04:12.996606714 -0500
++++ linux-4.18.20-new/arch/x86/include/asm/arch_hweight.h	2018-12-23 13:02:22.477703012 -0500
+@@ -3,6 +3,7 @@
+ #define _ASM_X86_HWEIGHT_H
+ 
+ #include <asm/cpufeatures.h>
++#include <asm/asm.h>
+ 
+ #ifdef CONFIG_64BIT
+ /* popcnt %edi, %eax */
+@@ -24,7 +25,7 @@
  {
  	unsigned int res;
  
 -	asm (ALTERNATIVE("call __sw_hweight32", POPCNT32, X86_FEATURE_POPCNT)
-+	asm (ALTERNATIVE("call __sw_hweight32@PLT", POPCNT32, X86_FEATURE_POPCNT)
++	asm (ALTERNATIVE(_ASM_CALL(__sw_hweight32), POPCNT32, X86_FEATURE_POPCNT)
  			 : "="REG_OUT (res)
  			 : REG_IN (w));
  
-@@ -52,7 +52,7 @@ static __always_inline unsigned long __arch_hweight64(__u64 w)
+@@ -52,7 +53,7 @@
  {
  	unsigned long res;
  
 -	asm (ALTERNATIVE("call __sw_hweight64", POPCNT64, X86_FEATURE_POPCNT)
-+	asm (ALTERNATIVE("call __sw_hweight64@PLT", POPCNT64, X86_FEATURE_POPCNT)
++	asm (ALTERNATIVE(_ASM_CALL(__sw_hweight64), POPCNT64, X86_FEATURE_POPCNT)
  			 : "="REG_OUT (res)
  			 : REG_IN (w));
  
-diff --git a/arch/x86/include/asm/asm.h b/arch/x86/include/asm/asm.h
-index bab567e4..70e6f498 100644
---- a/arch/x86/include/asm/asm.h
-+++ b/arch/x86/include/asm/asm.h
-@@ -118,6 +118,17 @@
- # define CC_OUT(c) [_cc_ ## c] "=qm"
- #endif
+diff -urN linux-4.18.20/arch/x86/include/asm/asm.h linux-4.18.20-new/arch/x86/include/asm/asm.h
+--- linux-4.18.20/arch/x86/include/asm/asm.h	2018-12-10 01:04:13.000606757 -0500
++++ linux-4.18.20-new/arch/x86/include/asm/asm.h	2018-12-23 13:02:22.477703012 -0500
+@@ -2,6 +2,30 @@
+ #ifndef _ASM_X86_ASM_H
+ #define _ASM_X86_ASM_H
  
-+/* PLT relocations in x86_64 PIC modules are already relative.
-+   However, due to inconsistent GNU binutils behavior (e.g., i386),
-+   avoid PLT relocations in all other cases (binutils bug 23997). */
++/* PIC modules require an indirection through GOT for
++   external symbols. _ASM_CALL() for internal functions
++   is optimized by replacing indirect calls with direct ones
++   preceded by 1-byte NOP paddings per a call site;
++   Similarly, _ASM_LEA_RIP() is optimized by replacing MOV
++   to LEA and is used to load symbol addresses on x86-64. */
 +#if defined(MODULE) && defined(CONFIG_X86_PIC)
-+# define _ASM_HANDLER(x)	x##@PLT
-+# define _ASM_HANDLER_STR(x)	x "@PLT"
++# ifdef __ASSEMBLY__
++#  define _ASM_CALL(f)		call *##f##@GOTPCREL(%rip)
++#  define _ASM_LEA_RIP(v,a)	movq v##@GOTPCREL(%rip), a
++# else
++#  define _ASM_CALL(f)		"call *" #f "@GOTPCREL(%%rip)"
++#  define _ASM_LEA_RIP(v,a)	"movq " #v "@GOTPCREL(%%rip), " #a
++# endif
 +#else
-+# define _ASM_HANDLER(x)	(x) - .
-+# define _ASM_HANDLER_STR(x)	"(" x ") - ."
++# ifdef __ASSEMBLY__
++#  define _ASM_CALL(f)		call f
++#  define _ASM_LEA_RIP(v,a)	leaq v##(%rip), a
++# else
++#  define _ASM_CALL(f)		"call " #f
++#  define _ASM_LEA_RIP(v,a)	"leaq " #v "(%%rip), " #a
++# endif
 +#endif
 +
- /* Exception table entry */
+ #ifdef __ASSEMBLY__
+ # define __ASM_FORM(x)	x
+ # define __ASM_FORM_RAW(x)     x
+@@ -122,10 +146,10 @@
  #ifdef __ASSEMBLY__
  # define _ASM_EXTABLE_HANDLE(from, to, handler)			\
-@@ -125,7 +136,7 @@
- 	.balign 4 ;						\
+ 	.pushsection "__ex_table","a" ;				\
+-	.balign 4 ;						\
++	_ASM_ALIGN ;						\
  	.long (from) - . ;					\
  	.long (to) - . ;					\
 -	.long (handler) - . ;					\
-+	.long _ASM_HANDLER(handler);				\
++	_ASM_PTR (handler) - . ;				\
  	.popsection
  
  # define _ASM_EXTABLE(from, to)					\
-@@ -171,13 +182,13 @@
- 	.endm
- 
- #else
--# define _EXPAND_EXTABLE_HANDLE(x) #x
-+# define _EXPAND_EXTABLE_HANDLE(x) _ASM_HANDLER_STR(#x)
+@@ -174,10 +198,10 @@
+ # define _EXPAND_EXTABLE_HANDLE(x) #x
  # define _ASM_EXTABLE_HANDLE(from, to, handler)			\
  	" .pushsection \"__ex_table\",\"a\"\n"			\
- 	" .balign 4\n"						\
+-	" .balign 4\n"						\
++	_ASM_ALIGN "\n"						\
  	" .long (" #from ") - .\n"				\
  	" .long (" #to ") - .\n"				\
 -	" .long (" _EXPAND_EXTABLE_HANDLE(handler) ") - .\n"	\
-+	" .long " _EXPAND_EXTABLE_HANDLE(handler) "\n"		\
++	_ASM_PTR " (" _EXPAND_EXTABLE_HANDLE(handler) ") - .\n"	\
  	" .popsection\n"
  
  # define _ASM_EXTABLE(from, to)					\
-diff --git a/arch/x86/include/asm/jump_label.h b/arch/x86/include/asm/jump_label.h
-index dfdcdc39..d8b481ab 100644
---- a/arch/x86/include/asm/jump_label.h
-+++ b/arch/x86/include/asm/jump_label.h
-@@ -37,7 +37,7 @@ static __always_inline bool arch_static_branch(struct static_key *key, bool bran
+diff -urN linux-4.18.20/arch/x86/include/asm/elf.h linux-4.18.20-new/arch/x86/include/asm/elf.h
+--- linux-4.18.20/arch/x86/include/asm/elf.h	2018-12-10 01:04:12.996606714 -0500
++++ linux-4.18.20-new/arch/x86/include/asm/elf.h	2018-12-23 13:02:22.477703012 -0500
+@@ -63,7 +63,12 @@
+ #define R_X86_64_8		14	/* Direct 8 bit sign extended  */
+ #define R_X86_64_PC8		15	/* 8 bit sign extended pc relative */
+ 
+-#define R_X86_64_NUM		16
++#define R_X86_64_PC64		24	/* PC relative 64 bit */
++
++#define R_X86_64_GOTPCRELX	41
++#define R_X86_64_REX_GOTPCRELX	42
++
++#define R_X86_64_NUM		43
+ 
+ /*
+  * These are used to set parameters in the core dumps.
+diff -urN linux-4.18.20/arch/x86/include/asm/extable.h linux-4.18.20-new/arch/x86/include/asm/extable.h
+--- linux-4.18.20/arch/x86/include/asm/extable.h	2018-12-10 01:04:12.996606714 -0500
++++ linux-4.18.20-new/arch/x86/include/asm/extable.h	2018-12-23 13:02:22.477703012 -0500
+@@ -15,7 +15,8 @@
+  */
+ 
+ struct exception_table_entry {
+-	int insn, fixup, handler;
++	int insn, fixup;
++	int handler, pad;
+ };
+ struct pt_regs;
+ 
+diff -urN linux-4.18.20/arch/x86/include/asm/jump_label.h linux-4.18.20-new/arch/x86/include/asm/jump_label.h
+--- linux-4.18.20/arch/x86/include/asm/jump_label.h	2018-12-10 01:04:13.000606757 -0500
++++ linux-4.18.20-new/arch/x86/include/asm/jump_label.h	2018-12-23 13:02:22.477703012 -0500
+@@ -37,7 +37,7 @@
  		".byte " __stringify(STATIC_KEY_INIT_NOP) "\n\t"
  		".pushsection __jump_table,  \"aw\" \n\t"
  		_ASM_ALIGN "\n\t"
@@ -314,7 +370,7 @@ index dfdcdc39..d8b481ab 100644
  		".popsection \n\t"
  		: :  "X" (&((char *)key)[branch]) : : l_yes);
  
-@@ -53,7 +53,7 @@ static __always_inline bool arch_static_branch_jump(struct static_key *key, bool
+@@ -53,7 +53,7 @@
  		"2:\n\t"
  		".pushsection __jump_table,  \"aw\" \n\t"
  		_ASM_ALIGN "\n\t"
@@ -323,11 +379,10 @@ index dfdcdc39..d8b481ab 100644
  		".popsection \n\t"
  		: :  "X" (&((char *)key)[branch]) : : l_yes);
  
-diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
-index b26d9672..e4724d24 100644
---- a/arch/x86/include/asm/kvm_host.h
-+++ b/arch/x86/include/asm/kvm_host.h
-@@ -1394,20 +1394,31 @@ enum {
+diff -urN linux-4.18.20/arch/x86/include/asm/kvm_host.h linux-4.18.20-new/arch/x86/include/asm/kvm_host.h
+--- linux-4.18.20/arch/x86/include/asm/kvm_host.h	2018-12-10 01:04:13.000606757 -0500
++++ linux-4.18.20-new/arch/x86/include/asm/kvm_host.h	2018-12-23 13:02:22.477703012 -0500
+@@ -1394,20 +1394,31 @@
   */
  asmlinkage void kvm_spurious_fault(void);
  
@@ -357,24 +412,50 @@ index b26d9672..e4724d24 100644
  	_ASM_MOV " %%" _ASM_AX ", " __ASM_SEL(4,8) "(%%" _ASM_SP ") \n\t" \
  	__ASM_SIZE(pop) "%%" _ASM_AX " \n\t"		\
 -	"call kvm_spurious_fault \n\t"	      \
-+	"call kvm_spurious_fault@PLT \n\t"	      \
++	_ASM_CALL(kvm_spurious_fault) " \n\t"	      \
  	".popsection \n\t" \
  	_ASM_EXTABLE(666b, 667b)
  
-diff --git a/arch/x86/include/asm/paravirt_types.h b/arch/x86/include/asm/paravirt_types.h
-index 140747a9..097b376a 100644
---- a/arch/x86/include/asm/paravirt_types.h
-+++ b/arch/x86/include/asm/paravirt_types.h
-@@ -337,7 +337,7 @@ extern struct pv_lock_ops pv_lock_ops;
+diff -urN linux-4.18.20/arch/x86/include/asm/module.h linux-4.18.20-new/arch/x86/include/asm/module.h
+--- linux-4.18.20/arch/x86/include/asm/module.h	2018-12-10 01:04:13.000606757 -0500
++++ linux-4.18.20-new/arch/x86/include/asm/module.h	2018-12-23 13:02:22.477703012 -0500
+@@ -5,13 +5,11 @@
+ #include <asm-generic/module.h>
+ #include <asm/orc_types.h>
+ 
+-#ifdef CONFIG_X86_PIE
+ struct mod_got_sec {
+ 	struct elf64_shdr	*got;
+ 	int			got_num_entries;
+ 	int			got_max_entries;
+ };
+-#endif
+ 
+ struct mod_arch_specific {
+ #ifdef CONFIG_UNWINDER_ORC
+@@ -19,9 +17,7 @@
+ 	int *orc_unwind_ip;
+ 	struct orc_entry *orc_unwind;
+ #endif
+-#ifdef CONFIG_X86_PIE
+ 	struct mod_got_sec	core;
+-#endif
+ };
+ 
+ #ifdef CONFIG_X86_64
+diff -urN linux-4.18.20/arch/x86/include/asm/paravirt_types.h linux-4.18.20-new/arch/x86/include/asm/paravirt_types.h
+--- linux-4.18.20/arch/x86/include/asm/paravirt_types.h	2018-12-10 01:04:12.996606714 -0500
++++ linux-4.18.20-new/arch/x86/include/asm/paravirt_types.h	2018-12-23 13:02:22.481703137 -0500
+@@ -337,7 +337,7 @@
  #define PARAVIRT_PATCH(x)					\
  	(offsetof(struct paravirt_patch_template, x) / sizeof(void *))
  
 -#ifdef CONFIG_X86_PIE
-+#if defined(CONFIG_X86_PIE) || defined(CONFIG_X86_PIC)
++#if defined(CONFIG_X86_PIE) || (defined(MODULE) && defined(CONFIG_X86_PIC))
  #define paravirt_opptr_call "a"
  #define paravirt_opptr_type "p"
  #else
-@@ -355,7 +355,11 @@ extern struct pv_lock_ops pv_lock_ops;
+@@ -355,7 +355,11 @@
   * Generate some code, and mark it as patchable by the
   * apply_paravirt() alternate instruction patcher.
   */
@@ -387,7 +468,7 @@ index 140747a9..097b376a 100644
  	"771:\n\t" insn_string "\n" "772:\n"		\
  	".pushsection .parainstructions,\"a\"\n"	\
  	_ASM_ALIGN "\n"					\
-@@ -364,6 +368,7 @@ extern struct pv_lock_ops pv_lock_ops;
+@@ -364,6 +368,7 @@
  	"  .byte 772b-771b\n"				\
  	"  .short " clobber "\n"			\
  	".popsection\n"
@@ -395,127 +476,264 @@ index 140747a9..097b376a 100644
  
  /* Generate patchable code, with the default asm parameters. */
  #define paravirt_alt(insn_string)					\
-diff --git a/arch/x86/include/asm/percpu.h b/arch/x86/include/asm/percpu.h
-index cb0b7562..8dba9a2b 100644
---- a/arch/x86/include/asm/percpu.h
-+++ b/arch/x86/include/asm/percpu.h
-@@ -216,7 +216,7 @@ do {									\
+diff -urN linux-4.18.20/arch/x86/include/asm/percpu.h linux-4.18.20-new/arch/x86/include/asm/percpu.h
+--- linux-4.18.20/arch/x86/include/asm/percpu.h	2018-12-10 01:04:12.996606714 -0500
++++ linux-4.18.20-new/arch/x86/include/asm/percpu.h	2018-12-23 13:02:22.481703137 -0500
+@@ -216,7 +216,7 @@
  })
  
  /* Position Independent code uses relative addresses only */
 -#ifdef CONFIG_X86_PIE
-+#if defined(CONFIG_X86_PIE) || defined(CONFIG_X86_PIC)
++#if defined(CONFIG_X86_PIE) || (defined(MODULE) && defined(CONFIG_X86_PIC))
  #define __percpu_stable_arg __percpu_arg(a1)
  #else
  #define __percpu_stable_arg __percpu_arg(P1)
-diff --git a/arch/x86/include/asm/uaccess.h b/arch/x86/include/asm/uaccess.h
-index aae77eb8..31d9e10b 100644
---- a/arch/x86/include/asm/uaccess.h
-+++ b/arch/x86/include/asm/uaccess.h
-@@ -174,7 +174,7 @@ __typeof__(__builtin_choose_expr(sizeof(x) > sizeof(0UL), 0ULL, 0UL))
+diff -urN linux-4.18.20/arch/x86/include/asm/uaccess.h linux-4.18.20-new/arch/x86/include/asm/uaccess.h
+--- linux-4.18.20/arch/x86/include/asm/uaccess.h	2018-12-10 01:04:13.000606757 -0500
++++ linux-4.18.20-new/arch/x86/include/asm/uaccess.h	2018-12-23 13:02:22.481703137 -0500
+@@ -174,7 +174,7 @@
  	register __inttype(*(ptr)) __val_gu asm("%"_ASM_DX);		\
  	__chk_user_ptr(ptr);						\
  	might_fault();							\
 -	asm volatile("call __get_user_%P4"				\
-+	asm volatile("call __get_user_%P4@PLT"				\
++	asm volatile(_ASM_CALL(__get_user_%P4)				\
  		     : "=a" (__ret_gu), "=r" (__val_gu),		\
  			ASM_CALL_CONSTRAINT				\
  		     : "0" (ptr), "i" (sizeof(*(ptr))));		\
-@@ -183,7 +183,7 @@ __typeof__(__builtin_choose_expr(sizeof(x) > sizeof(0UL), 0ULL, 0UL))
+@@ -183,7 +183,7 @@
  })
  
  #define __put_user_x(size, x, ptr, __ret_pu)			\
 -	asm volatile("call __put_user_" #size : "=a" (__ret_pu)	\
-+	asm volatile("call __put_user_" #size "@PLT" : "=a" (__ret_pu)	\
++	asm volatile(_ASM_CALL(__put_user_##size) : "=a" (__ret_pu)	\
  		     : "0" ((typeof(*(ptr)))(x)), "c" (ptr) : "ebx")
  
  
-@@ -213,7 +213,7 @@ __typeof__(__builtin_choose_expr(sizeof(x) > sizeof(0UL), 0ULL, 0UL))
+@@ -213,7 +213,7 @@
  		     : : "A" (x), "r" (addr))
  
  #define __put_user_x8(x, ptr, __ret_pu)				\
 -	asm volatile("call __put_user_8" : "=a" (__ret_pu)	\
-+	asm volatile("call __put_user_8@PLT" : "=a" (__ret_pu)	\
++	asm volatile(_ASM_CALL(__put_user_8) : "=a" (__ret_pu)	\
  		     : "A" ((typeof(*(ptr)))(x)), "c" (ptr) : "ebx")
  #else
  #define __put_user_asm_u64(x, ptr, retval, errret) \
-diff --git a/arch/x86/include/asm/xen/hypercall.h b/arch/x86/include/asm/xen/hypercall.h
-index bfd88261..cc3df429 100644
---- a/arch/x86/include/asm/xen/hypercall.h
-+++ b/arch/x86/include/asm/xen/hypercall.h
-@@ -88,9 +88,15 @@ struct xen_dm_op_buf;
+diff -urN linux-4.18.20/arch/x86/include/asm/xen/hypercall.h linux-4.18.20-new/arch/x86/include/asm/xen/hypercall.h
+--- linux-4.18.20/arch/x86/include/asm/xen/hypercall.h	2018-12-10 01:04:13.000606757 -0500
++++ linux-4.18.20-new/arch/x86/include/asm/xen/hypercall.h	2018-12-23 13:10:04.423442394 -0500
+@@ -88,9 +88,14 @@
  
  extern struct { char _entry[32]; } hypercall_page[];
  
 -#define __HYPERCALL		"call hypercall_page+%c[offset]"
 -#define __HYPERCALL_ENTRY(x)						\
 +#if defined(MODULE) && defined(CONFIG_X86_PIC)
-+# define __HYPERCALL		"call *%[target]"
-+# define __HYPERCALL_ENTRY(x)						\
-+	[target] "a" (&hypercall_page[__HYPERVISOR_##x])
++# define __HYPERCALL(x)	"call *xen_hypercall_" #x "@GOTPCREL(%%rip)"
++# define __HYPERCALL_ENTRY(x)
 +#else
-+# define __HYPERCALL		"call hypercall_page+%c[offset]"
++# define __HYPERCALL(x)	"call hypercall_page+%c[offset]"
 +# define __HYPERCALL_ENTRY(x)						\
  	[offset] "i" (__HYPERVISOR_##x * sizeof(hypercall_page[0]))
 +#endif
  
  #ifdef CONFIG_X86_32
  #define __HYPERCALL_RETREG	"eax"
-diff --git a/arch/x86/kernel/module.c b/arch/x86/kernel/module.c
-index 88895f3d..209d72fa 100644
---- a/arch/x86/kernel/module.c
-+++ b/arch/x86/kernel/module.c
-@@ -294,6 +294,7 @@ int apply_relocate(Elf32_Shdr *sechdrs,
- 			*location += sym->st_value;
- 			break;
- 		case R_386_PC32:
-+		case R_386_PLT32:
- 			/* Add the value, subtract its position */
- 			*location += sym->st_value - (uint32_t)location;
- 			break;
-@@ -322,8 +323,12 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
- 	       relsec, sechdrs[relsec].sh_info);
- 	for (i = 0; i < sechdrs[relsec].sh_size / sizeof(*rel); i++) {
- 		/* This is where to make the change */
--		loc = (void *)sechdrs[sechdrs[relsec].sh_info].sh_addr
--			+ rel[i].r_offset;
-+		loc = (void *)rel[i].r_offset;
-+		loc +=
-+#ifdef CONFIG_X86_PIC
-+			me->shared_base_rel ?:
-+#endif
-+			sechdrs[sechdrs[relsec].sh_info].sh_addr;
+@@ -146,7 +151,7 @@
+ ({									\
+ 	__HYPERCALL_DECLS;						\
+ 	__HYPERCALL_0ARG();						\
+-	asm volatile (__HYPERCALL					\
++	asm volatile (__HYPERCALL(name)					\
+ 		      : __HYPERCALL_0PARAM				\
+ 		      : __HYPERCALL_ENTRY(name)				\
+ 		      : __HYPERCALL_CLOBBER0);				\
+@@ -157,7 +162,7 @@
+ ({									\
+ 	__HYPERCALL_DECLS;						\
+ 	__HYPERCALL_1ARG(a1);						\
+-	asm volatile (__HYPERCALL					\
++	asm volatile (__HYPERCALL(name)					\
+ 		      : __HYPERCALL_1PARAM				\
+ 		      : __HYPERCALL_ENTRY(name)				\
+ 		      : __HYPERCALL_CLOBBER1);				\
+@@ -168,7 +173,7 @@
+ ({									\
+ 	__HYPERCALL_DECLS;						\
+ 	__HYPERCALL_2ARG(a1, a2);					\
+-	asm volatile (__HYPERCALL					\
++	asm volatile (__HYPERCALL(name)					\
+ 		      : __HYPERCALL_2PARAM				\
+ 		      : __HYPERCALL_ENTRY(name)				\
+ 		      : __HYPERCALL_CLOBBER2);				\
+@@ -179,7 +184,7 @@
+ ({									\
+ 	__HYPERCALL_DECLS;						\
+ 	__HYPERCALL_3ARG(a1, a2, a3);					\
+-	asm volatile (__HYPERCALL					\
++	asm volatile (__HYPERCALL(name)					\
+ 		      : __HYPERCALL_3PARAM				\
+ 		      : __HYPERCALL_ENTRY(name)				\
+ 		      : __HYPERCALL_CLOBBER3);				\
+@@ -190,7 +195,7 @@
+ ({									\
+ 	__HYPERCALL_DECLS;						\
+ 	__HYPERCALL_4ARG(a1, a2, a3, a4);				\
+-	asm volatile (__HYPERCALL					\
++	asm volatile (__HYPERCALL(name)					\
+ 		      : __HYPERCALL_4PARAM				\
+ 		      : __HYPERCALL_ENTRY(name)				\
+ 		      : __HYPERCALL_CLOBBER4);				\
+@@ -201,7 +206,7 @@
+ ({									\
+ 	__HYPERCALL_DECLS;						\
+ 	__HYPERCALL_5ARG(a1, a2, a3, a4, a5);				\
+-	asm volatile (__HYPERCALL					\
++	asm volatile (__HYPERCALL(name)					\
+ 		      : __HYPERCALL_5PARAM				\
+ 		      : __HYPERCALL_ENTRY(name)				\
+ 		      : __HYPERCALL_CLOBBER5);				\
+diff -urN linux-4.18.20/arch/x86/Kconfig linux-4.18.20-new/arch/x86/Kconfig
+--- linux-4.18.20/arch/x86/Kconfig	2018-12-10 01:04:12.996606714 -0500
++++ linux-4.18.20-new/arch/x86/Kconfig	2018-12-23 13:02:22.481703137 -0500
+@@ -2238,9 +2238,18 @@
+ 	select DYNAMIC_MODULE_BASE
+ 	select MODULE_REL_CRCS if MODVERSIONS
  
- 		/* This is the symbol it is referring to.  Note that all
- 		   undefined symbols have been resolved.  */
-@@ -342,6 +347,10 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
- 		case R_X86_64_64:
- 			if (*(u64 *)loc != 0)
- 				goto invalid_relocation;
-+#ifdef CONFIG_X86_PIC
-+		case R_X86_64_JUMP_SLOT:
-+		case R_X86_64_GLOB_DAT:
-+#endif
- 			*(u64 *)loc = val;
++config X86_PIC
++	bool
++	depends on X86_64
++	default y
++	select MODULE_REL_CRCS if MODVERSIONS
++	---help---
++	  Compile position-independent DLL modules which can
++          be placed anywhere in the 64-bit address space.
++
+ config RANDOMIZE_BASE_LARGE
+ 	bool "Increase the randomization range of the kernel image"
+-	depends on X86_64 && RANDOMIZE_BASE
++	depends on X86_64 && RANDOMIZE_BASE && X86_PIC
+ 	select X86_PIE
+ 	select X86_MODULE_PLTS if MODULES
+ 	default n
+diff -urN linux-4.18.20/arch/x86/kernel/ftrace.c linux-4.18.20-new/arch/x86/kernel/ftrace.c
+--- linux-4.18.20/arch/x86/kernel/ftrace.c	2018-12-10 01:04:13.008606842 -0500
++++ linux-4.18.20-new/arch/x86/kernel/ftrace.c	2018-12-23 13:02:22.481703137 -0500
+@@ -144,13 +144,6 @@
+ {
+ 	unsigned char replaced[MCOUNT_INSN_SIZE + 1];
+ 
+-	/*
+-	 * If PIE is not enabled default to the original approach to code
+-	 * modification.
+-	 */
+-	if (!IS_ENABLED(CONFIG_X86_PIE))
+-		return ftrace_modify_code_direct(ip, old_code, new_code);
+-
+ 	ftrace_expected = old_code;
+ 
+ 	/* Ensure the instructions point to a call to the GOT */
+@@ -159,9 +152,12 @@
+ 		return -EFAULT;
+ 	}
+ 
++	/*
++	 * For non-PIC code, default to the original approach to code
++	 * modification.
++	 */
+ 	if (memcmp(replaced, got_call_preinsn, sizeof(got_call_preinsn))) {
+-		WARN_ONCE(1, "invalid function call");
+-		return -EINVAL;
++		return ftrace_modify_code_direct(ip, old_code, new_code);
+ 	}
+ 
+ 	/*
+diff -urN linux-4.18.20/arch/x86/kernel/machine_kexec_64.c linux-4.18.20-new/arch/x86/kernel/machine_kexec_64.c
+--- linux-4.18.20/arch/x86/kernel/machine_kexec_64.c	2018-12-10 01:04:13.004606798 -0500
++++ linux-4.18.20-new/arch/x86/kernel/machine_kexec_64.c	2018-12-23 13:02:22.481703137 -0500
+@@ -496,6 +496,10 @@
+ 			value -= (u64)address;
+ 			*(u32 *)location = value;
  			break;
- 		case R_X86_64_32:
-@@ -373,6 +382,11 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
++		case R_X86_64_PC64:
++			value -= (u64)address;
++			*(u64 *)location = value;
++			break;
+ 		default:
+ 			pr_err("Unknown rela relocation: %llu\n",
+ 			       ELF64_R_TYPE(rel[i].r_info));
+diff -urN linux-4.18.20/arch/x86/kernel/module.c linux-4.18.20-new/arch/x86/kernel/module.c
+--- linux-4.18.20/arch/x86/kernel/module.c	2018-12-10 01:04:13.004606798 -0500
++++ linux-4.18.20-new/arch/x86/kernel/module.c	2018-12-23 13:05:59.980604384 -0500
+@@ -90,6 +90,12 @@
+ 
+ 	return 0;
+ }
++#else
++static u64 find_got_kernel_entry(Elf64_Sym *sym, const Elf64_Rela *rela)
++{
++	return 0;
++}
++#endif
+ 
+ static u64 module_emit_got_entry(struct module *mod, void *loc,
+ 				 const Elf64_Rela *rela, Elf64_Sym *sym)
+@@ -111,7 +117,7 @@
+ 	 * relocations are sorted, this will be the last entry we allocated.
+ 	 * (if one exists).
+ 	 */
+-	if (i > 0 && got[i] == got[i - 2]) {
++	if (i > 0 && got[i] == got[i - 1]) {
+ 		ret = (u64)&got[i - 1];
+ 	} else {
+ 		gotsec->got_num_entries++;
+@@ -156,6 +162,8 @@
+ 
+ 	for (i = 0; i < num; i++) {
+ 		switch (ELF64_R_TYPE(rela[i].r_info)) {
++		case R_X86_64_REX_GOTPCRELX:
++		case R_X86_64_GOTPCRELX:
+ 		case R_X86_64_GOTPCREL:
+ 			s = syms + ELF64_R_SYM(rela[i].r_info);
+ 
+@@ -243,7 +251,6 @@
+ 	}
+ 	return 0;
+ }
+-#endif
+ 
+ void *module_alloc(unsigned long size)
+ {
+@@ -358,11 +365,11 @@
+ 			if ((s64)val != *(s32 *)loc)
+ 				goto overflow;
+ 			break;
+-#ifdef CONFIG_X86_PIE
++		case R_X86_64_REX_GOTPCRELX:
++		case R_X86_64_GOTPCRELX:
+ 		case R_X86_64_GOTPCREL:
+ 			val = module_emit_got_entry(me, loc, rel + i, sym);
+ 			/* fallthrough */
+-#endif
+ 		case R_X86_64_PC32:
+ 		case R_X86_64_PLT32:
+ 			if (*(u32 *)loc != 0)
+@@ -373,6 +380,12 @@
  			    (s64)val != *(s32 *)loc)
  				goto overflow;
  			break;
-+#ifdef CONFIG_X86_PIC
-+		case R_X86_64_RELATIVE:
-+			*(u64 *)loc = me->shared_base_rel + rel[i].r_addend;
++		case R_X86_64_PC64:
++			if (*(u64 *)loc != 0)
++				goto invalid_relocation;
++			val -= (u64)loc;
++			*(u64 *)loc = val;
 +			break;
-+#endif
  		default:
  			pr_err("%s: Unknown rela relocation: %llu\n",
  			       me->name, ELF64_R_TYPE(rel[i].r_info));
-diff --git a/arch/x86/kvm/emulate.c b/arch/x86/kvm/emulate.c
-index 4c4f4263..9f72e2f0 100644
---- a/arch/x86/kvm/emulate.c
-+++ b/arch/x86/kvm/emulate.c
-@@ -428,7 +428,6 @@ static int fastop(struct x86_emulate_ctxt *ctxt, void (*fop)(struct fastop *));
+diff -urN linux-4.18.20/arch/x86/kvm/emulate.c linux-4.18.20-new/arch/x86/kvm/emulate.c
+--- linux-4.18.20/arch/x86/kvm/emulate.c	2018-12-10 01:04:13.008606842 -0500
++++ linux-4.18.20-new/arch/x86/kvm/emulate.c	2018-12-23 13:02:22.485703262 -0500
+@@ -428,7 +428,6 @@
  	FOP_RET
  
  asm(".pushsection .fixup, \"ax\"\n"
@@ -523,426 +741,180 @@ index 4c4f4263..9f72e2f0 100644
      "kvm_fastop_exception: xor %esi, %esi; ret\n"
      ".popsection");
  
-diff --git a/arch/x86/scripts/genLinker.py b/arch/x86/scripts/genLinker.py
-new file mode 100755
-index 00000000..1df43646
---- /dev/null
-+++ b/arch/x86/scripts/genLinker.py
-@@ -0,0 +1,221 @@
-+'''
-+pip install pyelftools
-+https://github.com/eliben/pyelftools/
-+'''
+diff -urN linux-4.18.20/arch/x86/Makefile linux-4.18.20-new/arch/x86/Makefile
+--- linux-4.18.20/arch/x86/Makefile	2018-12-10 01:04:12.996606714 -0500
++++ linux-4.18.20-new/arch/x86/Makefile	2018-12-23 13:02:22.485703262 -0500
+@@ -136,6 +136,12 @@
+         KBUILD_CFLAGS += $(cflags-y)
+ 
+         KBUILD_CFLAGS += -mno-red-zone
 +
-+import sys
-+from elftools.elf.elffile import ELFFile
-+import json
-+import argparse
++ifdef CONFIG_X86_PIC
++        KBUILD_CFLAGS_MODULE += -fPIC -fno-plt -mcmodel=small -fno-stack-protector -fvisibility=hidden
++endif
++        KBUILD_LDFLAGS_MODULE += -T $(srctree)/arch/x86/kernel/module.lds
 +
-+#-------------------------------------------------------------------
-+ARCH_SHF_SMALL = 0 # for x86 processors
-+
-+# sh_flags
-+SHF_WRITE		    = 0x1
-+SHF_ALLOC		    = 0x2
-+SHF_EXECINSTR		= 0x4
-+SHF_RELA_LIVEPATCH	= 0x00100000
-+SHF_RO_AFTER_INIT	= 0x00200000
-+SHF_MASKPROC		= 0xf0000000
-+
-+section_masks = [
-+	[ SHF_EXECINSTR | SHF_ALLOC, ARCH_SHF_SMALL ],
-+	[ SHF_ALLOC, SHF_WRITE | ARCH_SHF_SMALL ],
-+	[ SHF_RO_AFTER_INIT | SHF_ALLOC, ARCH_SHF_SMALL ],
-+	[ SHF_WRITE | SHF_ALLOC, ARCH_SHF_SMALL ],
-+	[ ARCH_SHF_SMALL | SHF_ALLOC, 0 ]
-+]
-+#-------------------------------------------------------------------
-+# All possible relocations
-+rela_map = {'out': '.rela.dyn', 'in': '''
-+    *(.rela.init)
-+    *(.rela.text .rela.text.* .rela.gnu.linkonce.t.*)
-+    *(.rela.fini)
-+    *(.rela.rodata .rela.rodata.* .rela.gnu.linkonce.r.*)
-+    *(.rela.data .rela.data.* .rela.gnu.linkonce.d.*)
-+    *(.rela.tdata .rela.tdata.* .rela.gnu.linkonce.td.*)
-+    *(.rela.tbss .rela.tbss.* .rela.gnu.linkonce.tb.*)
-+    *(.rela.ctors)
-+    *(.rela.dtors)
-+    *(.rela.got)
-+    *(.rela.bss .rela.bss.* .rela.gnu.linkonce.b.*)
-+    *(.rela.ldata .rela.ldata.* .rela.gnu.linkonce.l.*)
-+    *(.rela.lbss .rela.lbss.* .rela.gnu.linkonce.lb.*)
-+    *(.rela.lrodata .rela.lrodata.* .rela.gnu.linkonce.lr.*)
-+    *(.rela.ifunc)
-+    *(.rela.plt)
-+    *(.rela.iplt)
-+    *(.rela.*)
-+    *(.rela_*)
-+'''}
-+
-+# Our special relocation
-+rela_special = {'out':'.relahxnstruct', 'in':'*(.relahxnstruct)'}
-+#-------------------------------------------------------------------
-+
-+def write_linker_file(filename, data):
-+    file_data = 'SECTIONS{{{}\n}}'
-+    body = '\n   . = SEGMENT_START("text-segment", 0) + SIZEOF_HEADERS;\n'
-+    
-+    for sec_group in data:
-+        if len( sec_group ) > 0:
-+            body = body + '\n/* ------ %s -------- */' % 'new page'
-+            body = body + '\n   . = ALIGN(4096);'
-+            for sec in sec_group:
-+                out_name = sec['out']
-+                in_name = sec['in']
-+                body = body +  "\n   {} : {{ {} }}".format( out_name, in_name )
-+
-+    file_data =  file_data.format( body )
-+
-+    with open(filename, 'w') as f:
-+        f.write(file_data)
-+
-+def mergeSections(map_list_list, mlist):
-+    def removeStartsWith(map_list_list, name):
-+        index = None
-+        for i,map_list in enumerate(map_list_list):
-+            if any( [item['out'].startswith(name) for item in map_list] ):
-+                map_list_list[i] = [item for item in map_list if not item['out'].startswith(name)]
-+                if index and index != i: raise Exception('Merge Error')
-+                index = i
-+        
-+        return index
-+
-+    for name in mlist:
-+        i = removeStartsWith(map_list_list, name)
-+        if i:
-+            out_name = name
-+            in_name = '*(%s.*)'%name
-+            map_list_list[i].append( {'out': out_name, 'in': in_name} )
-+
-+    return map_list_list
-+
-+'''
-+Returns section placements as expected by linux kernel.
-+Sections represented as a list of lists
-+'''
-+def getSectionPlacements(sections, ignore=[]):
-+    # These sections flags are removed in rewrite_section_headers() function
-+    expections = ['.modinfo', '__versions']
-+    input_sections = list()
-+
-+    for sect in sections: sect.done = False
-+    
-+    # Populate Core Layout
-+    for i,mask in enumerate(section_masks):
-+        sect_group = list()
-+        for sect in sections:
-+            sh_flags = sect.header['sh_flags']
-+            sh_entsize = sect.header['sh_entsize']
-+            if ((sh_flags & mask[0]) != mask[0] or ((sh_flags & mask[1]) != 0) or sect.done or
-+                any([sect.name.startswith(ex) for ex in expections]) or
-+                sect.name.startswith('hxn')):
-+                continue
-+            sect.done = True
-+            should_ignore = any([sect.name.startswith(ig) for ig in ignore])
-+            if sect.name and not should_ignore: sect_group.append( sect.name )
-+        input_sections.append( sect_group )
-+    
-+    # Populate Fixed Layout
-+    for i,mask in enumerate(section_masks):
-+        sect_group = list()
-+        for sect in sections:
-+            sh_flags = sect.header['sh_flags']
-+            sh_entsize = sect.header['sh_entsize']
-+            if ((sh_flags & mask[0]) != mask[0] or ((sh_flags & mask[1]) != 0) or sect.done or
-+                not sect.name.startswith('hxn')):
-+                continue
-+            sect.done = True
-+            should_ignore = any([sect.name.startswith(ig) for ig in ignore])
-+            if sect.name and not should_ignore: sect_group.append( sect.name )
-+        input_sections.append( sect_group )
-+
-+    # Add uncategorized sections
-+    sect_group = list()
-+    for sect in sections:
-+        if sect.name and not sect.done and not sect.name.startswith('hxn'):
-+            sect.done = True
-+            sect_group.append( sect.name )
-+
-+    input_sections.append( sect_group )
-+
-+    input_sections = [x for x in input_sections if x] # remove empty lists
-+    return input_sections
-+
-+'''
-+Generates the linkerscipt that rearanges the sections according to linux's expections
-+Writes a file named linkerscript.ld 
-+'''
-+def process_file(filename, output_filename):
-+    # Read File
-+    with open(filename, 'rb') as f:
-+        sections = list( ELFFile(f).iter_sections() )
-+
-+    input_sections = getSectionPlacements(sections, ignore=['.rela'])
-+
-+    section_map = list()
-+
-+    for input_section in input_sections:
-+        map = list()
-+        for in_name in input_section:
-+            if in_name.startswith('.init'):
-+                out_name = '.x' + in_name
-+            else:
-+                out_name = in_name
-+
-+            map.append( {'out': out_name, 'in': '*(%s*)'%in_name} )
-+        section_map.append( map )
-+
-+    # mergeSections(section_map, ['.rela'])
-+
-+    # section_map[1].insert(0, {'out':'.rela.dyn', 'in':'.rela.dyn'})
-+    section_map[1].insert(0, rela_special)
-+    section_map[1].insert(0, rela_map)
-+
-+    write_linker_file(output_filename, section_map)
-+
-+'''
-+Verifies if the the file respects the arrangement of sections as expected by the linux kernel
-+Returns true if correct, false if incorrect
-+'''
-+def isCorrectPlacement(filename):
-+    # Read File
-+    with open(filename, 'rb') as f:
-+        sections = list( ELFFile(f).iter_sections() )
-+
-+    # Verify virtual address
-+    for sec in sections:
-+        if (sec.header['sh_flags'] & SHF_ALLOC) and sec.header['sh_offset'] != sec.header['sh_addr']:
-+            return False
-+
-+    # Verify section order
-+    correct = getSectionPlacements(sections)
-+    correct = [item for sublist in correct for item in sublist] # flatten
-+    actual = [sect.name for sect in sections if sect.name]
-+
-+    for i in range(len(correct)):
-+        # print correct[i], '-'*3 ,actual[i]
-+        if correct[i] != actual[i]:
-+            return False
-+
-+
-+    return True
-+
-+if __name__ == '__main__':
-+    parser = argparse.ArgumentParser(description='Generate linkerscript for PIC kernel modules')
-+    parser.add_argument('input', help='Name of input file')
-+    parser.add_argument('-o', '--output', nargs='?', default='linkerscript.ld', help='If not specified, the default output is linkerscript.ld')
-+    parser.add_argument('-v', '--verify', action='store_true', help='Verifies the section placement of input file')
-+    args = parser.parse_args()
-+
-+    if  args.verify:
-+        isGood = isCorrectPlacement(args.input)
-+        if not isGood:
-+            print 'ERROR: [%s] bad section placement'%(args.input.split('/')[-1])
-+        sys.exit( 0 if isGood else 1 )
-+    else:
-+        process_file(args.input, args.output)
-+
-+    sys.exit( 0 )
-\ No newline at end of file
-diff --git a/arch/x86/tools/relocs.c b/arch/x86/tools/relocs.c
-index a29cccce..4692b282 100644
---- a/arch/x86/tools/relocs.c
-+++ b/arch/x86/tools/relocs.c
-@@ -948,6 +948,7 @@ static int do_reloc32(struct section *sec, Elf_Rel *rel, Elf_Sym *sym,
+ ifdef CONFIG_X86_PIE
+         KBUILD_CFLAGS += -fPIE
+         KBUILD_LDFLAGS_MODULE += -T $(srctree)/arch/x86/kernel/module.lds
+diff -urN linux-4.18.20/arch/x86/tools/relocs.c linux-4.18.20-new/arch/x86/tools/relocs.c
+--- linux-4.18.20/arch/x86/tools/relocs.c	2018-12-10 01:04:13.012606883 -0500
++++ linux-4.18.20-new/arch/x86/tools/relocs.c	2018-12-23 13:02:22.485703262 -0500
+@@ -203,6 +203,7 @@
+ 		REL_TYPE(R_X86_64_NONE),
+ 		REL_TYPE(R_X86_64_64),
+ 		REL_TYPE(R_X86_64_PC32),
++		REL_TYPE(R_X86_64_PC64),
+ 		REL_TYPE(R_X86_64_GOT32),
+ 		REL_TYPE(R_X86_64_PLT32),
+ 		REL_TYPE(R_X86_64_COPY),
+@@ -210,6 +211,8 @@
+ 		REL_TYPE(R_X86_64_JUMP_SLOT),
+ 		REL_TYPE(R_X86_64_RELATIVE),
+ 		REL_TYPE(R_X86_64_GOTPCREL),
++		REL_TYPE(R_X86_64_REX_GOTPCRELX),
++		REL_TYPE(R_X86_64_GOTPCRELX),
+ 		REL_TYPE(R_X86_64_32),
+ 		REL_TYPE(R_X86_64_32S),
+ 		REL_TYPE(R_X86_64_16),
+@@ -866,6 +869,8 @@
+ 		offset += per_cpu_load_addr;
+ 
  	switch (r_type) {
- 	case R_386_NONE:
- 	case R_386_PC32:
-+	case R_386_PLT32:
- 	case R_386_PC16:
- 	case R_386_PC8:
- 		/*
-@@ -991,6 +992,7 @@ static int do_reloc_real(struct section *sec, Elf_Rel *rel, Elf_Sym *sym,
- 	switch (r_type) {
- 	case R_386_NONE:
- 	case R_386_PC32:
-+	case R_386_PLT32:
- 	case R_386_PC16:
- 	case R_386_PC8:
- 		/*
-diff --git a/include/linux/module.h b/include/linux/module.h
-index d44df9b2..35cfd2bd 100644
---- a/include/linux/module.h
-+++ b/include/linux/module.h
-@@ -481,6 +481,9 @@ struct module {
- 	struct error_injection_entry *ei_funcs;
- 	unsigned int num_ei_funcs;
- #endif
-+#ifdef CONFIG_X86_PIC
-+	Elf_Addr shared_base_rel;
-+#endif
- } ____cacheline_aligned __randomize_layout;
- #ifndef MODULE_ARCH_INIT
- #define MODULE_ARCH_INIT {}
-diff --git a/kernel/module.c b/kernel/module.c
-index 4a6b9c6d..4edcf52c 100644
---- a/kernel/module.c
-+++ b/kernel/module.c
-@@ -2315,7 +2315,13 @@ static int apply_relocations(struct module *mod, const struct load_info *info)
- 			continue;
++	case R_X86_64_REX_GOTPCRELX:
++	case R_X86_64_GOTPCRELX:
+ 	case R_X86_64_GOTPCREL:
+ 	case R_X86_64_NONE:
+ 		/* NONE can be ignored. */
+@@ -881,6 +886,14 @@
+ 		 */
+ 		if (is_percpu_sym(sym, symname))
+ 			add_reloc(&relocs32neg, offset);
++
++		/* fallthrough */
++
++	case R_X86_64_PC64:
++		/*
++		 * PC64 relocations are currently found only in
++		 * __ex_table and don't need to be adjusted.
++		 */
+ 		break;
  
- 		/* Don't bother with non-allocated sections */
--		if (!(info->sechdrs[infosec].sh_flags & SHF_ALLOC))
-+		/* sh_info can be zero for shared object */
-+		if (!(info->sechdrs[infosec].sh_flags & SHF_ALLOC)
-+#ifdef CONFIG_X86_PIC
-+			&& infosec != 0)
-+#else
-+			)
-+#endif
- 			continue;
+ 	case R_X86_64_32:
+diff -urN linux-4.18.20/arch/x86/xen/xen-head.S linux-4.18.20-new/arch/x86/xen/xen-head.S
+--- linux-4.18.20/arch/x86/xen/xen-head.S	2018-12-10 01:04:13.016606927 -0500
++++ linux-4.18.20-new/arch/x86/xen/xen-head.S	2018-12-23 13:11:59.957110663 -0500
+@@ -13,6 +13,7 @@
+ #include <asm/page_types.h>
+ #include <asm/percpu.h>
+ #include <asm/unwind_hints.h>
++#include <asm/export.h>
  
- 		/* Livepatch relocation sections are applied by livepatch */
-@@ -2802,7 +2808,11 @@ static int elf_header_check(struct load_info *info)
- 		return -ENOEXEC;
+ #include <xen/interface/elfnote.h>
+ #include <xen/interface/features.h>
+@@ -66,6 +67,7 @@
+ 	.endr
  
- 	if (memcmp(info->hdr->e_ident, ELFMAG, SELFMAG) != 0
--	    || info->hdr->e_type != ET_REL
-+#ifdef CONFIG_X86_PIC
-+		|| !(info->hdr->e_type == ET_DYN || info->hdr->e_type == ET_REL)
-+#else
-+		|| info->hdr->e_type != ET_REL
-+#endif
- 	    || !elf_check_arch(info->hdr)
- 	    || info->hdr->e_shentsize != sizeof(Elf_Shdr))
- 		return -ENOEXEC;
-@@ -2899,6 +2909,40 @@ static void free_copy(struct load_info *info)
- 	vfree(info->hdr);
+ #define HYPERCALL(n) \
++	EXPORT_SYMBOL_GPL(xen_hypercall_##n); \
+ 	.equ xen_hypercall_##n, hypercall_page + __HYPERVISOR_##n * 32; \
+ 	.type xen_hypercall_##n, @function; .size xen_hypercall_##n, 32
+ #include <asm/xen-hypercalls.h>
+diff -urN linux-4.18.20/lib/zstd/entropy_common_dec.c linux-4.18.20-new/lib/zstd/entropy_common_dec.c
+--- linux-4.18.20/lib/zstd/entropy_common_dec.c	1969-12-31 19:00:00.000000000 -0500
++++ linux-4.18.20-new/lib/zstd/entropy_common_dec.c	2018-12-23 13:02:22.485703262 -0500
+@@ -0,0 +1 @@
++#include "entropy_common.c"
+diff -urN linux-4.18.20/lib/zstd/fse_decompress_dec.c linux-4.18.20-new/lib/zstd/fse_decompress_dec.c
+--- linux-4.18.20/lib/zstd/fse_decompress_dec.c	1969-12-31 19:00:00.000000000 -0500
++++ linux-4.18.20-new/lib/zstd/fse_decompress_dec.c	2018-12-23 13:02:22.485703262 -0500
+@@ -0,0 +1 @@
++#include "fse_decompress.c"
+diff -urN linux-4.18.20/lib/zstd/Makefile linux-4.18.20-new/lib/zstd/Makefile
+--- linux-4.18.20/lib/zstd/Makefile	2018-12-10 01:04:12.516601611 -0500
++++ linux-4.18.20-new/lib/zstd/Makefile	2018-12-23 13:02:22.485703262 -0500
+@@ -6,4 +6,4 @@
+ zstd_compress-y := fse_compress.o huf_compress.o compress.o \
+ 		   entropy_common.o fse_decompress.o zstd_common.o
+ zstd_decompress-y := huf_decompress.o decompress.o \
+-		     entropy_common.o fse_decompress.o zstd_common.o
++		     entropy_common_dec.o fse_decompress_dec.o zstd_common_dec.o
+diff -urN linux-4.18.20/lib/zstd/zstd_common_dec.c linux-4.18.20-new/lib/zstd/zstd_common_dec.c
+--- linux-4.18.20/lib/zstd/zstd_common_dec.c	1969-12-31 19:00:00.000000000 -0500
++++ linux-4.18.20-new/lib/zstd/zstd_common_dec.c	2018-12-23 13:02:22.485703262 -0500
+@@ -0,0 +1 @@
++#include "zstd_common.c"
+diff -urN linux-4.18.20/scripts/recordmcount.c linux-4.18.20-new/scripts/recordmcount.c
+--- linux-4.18.20/scripts/recordmcount.c	2018-12-10 01:04:12.568602166 -0500
++++ linux-4.18.20-new/scripts/recordmcount.c	2018-12-23 13:02:22.489703387 -0500
+@@ -453,7 +453,8 @@
+ /* Swap the stub and nop for a got call if the binary is built with PIE */
+ static int is_fake_mcount_x86_x64(Elf64_Rel const *rp)
+ {
+-	if (ELF64_R_TYPE(rp->r_info) == R_X86_64_GOTPCREL) {
++	if (ELF64_R_TYPE(rp->r_info) == R_X86_64_GOTPCREL ||
++	    ELF64_R_TYPE(rp->r_info) == R_X86_64_GOTPCRELX) {
+ 		ideal_nop = ideal_nop6_x86_64;
+ 		ideal_nop_x86_size = sizeof(ideal_nop6_x86_64);
+ 		stub_x86 = stub_got_x86;
+diff -urN linux-4.18.20/scripts/sortextable.c linux-4.18.20-new/scripts/sortextable.c
+--- linux-4.18.20/scripts/sortextable.c	2018-12-10 01:04:12.568602166 -0500
++++ linux-4.18.20-new/scripts/sortextable.c	2018-12-23 13:02:22.489703387 -0500
+@@ -238,6 +238,37 @@
+ 	}
  }
  
-+#ifdef CONFIG_X86_PIC
-+static void make_symbols_relative(struct load_info *info)
++static void x86_64_sort_relative_table(char *extab_image, int image_size)
 +{
-+	Elf_Shdr *symsec;
-+	Elf_Sym *sym;
-+	Elf_Shdr *shdr;
-+	unsigned int i, j;
++	int i;
 +
-+	// Find SHT_DYNSYM symbol sections
-+	for (i = 1; i < info->hdr->e_shnum; i++) {
-+		if (info->sechdrs[i].sh_type == SHT_DYNSYM) {
-+			symsec = &info->sechdrs[i];
-+			sym = (void *)info->hdr + symsec->sh_offset;
-+			for (j = 0; j < symsec->sh_size / sizeof(Elf_Sym); j++) {
-+				switch (sym[j].st_shndx) {
-+				/* For these sections, st_value represents
-+				   a special value which need not be modified */
-+				case SHN_COMMON:
-+				case SHN_ABS:
-+				case SHN_LIVEPATCH:
-+				case SHN_UNDEF:
-+					break;
++	i = 0;
++	while (i < image_size) {
++		uint32_t *loc = (uint32_t *)(extab_image + i);
 +
-+				default:
-+					shdr = &info->sechdrs[sym[j].st_shndx];
-+					sym[j].st_value -= shdr->sh_addr;
-+					break;
-+				}
-+			}
-+		}
++		w(r(loc) + i, loc);
++		w(r(loc + 1) + i + 4, loc + 1);
++		w(r(loc + 2) + i + 8, loc + 2);
++		w(r(loc + 3) + i + 12, loc + 3);
++
++		i += sizeof(uint32_t) * 4;
++	}
++
++	qsort(extab_image, image_size / 16, 16, compare_relative_table);
++
++	i = 0;
++	while (i < image_size) {
++		uint32_t *loc = (uint32_t *)(extab_image + i);
++
++		w(r(loc) - i, loc);
++		w(r(loc + 1) - (i + 4), loc + 1);
++		w(r(loc + 2) - (i + 8), loc + 2);
++		w(r(loc + 3) - (i + 12), loc + 3);
++
++		i += sizeof(uint32_t) * 4;
 +	}
 +}
-+#endif
 +
- static int rewrite_section_headers(struct load_info *info, int flags)
+ static void sort_relative_table(char *extab_image, int image_size)
  {
- 	unsigned int i;
-@@ -2952,7 +2996,7 @@ static int rewrite_section_headers(struct load_info *info, int flags)
-  */
- static struct module *setup_load_info(struct load_info *info, int flags)
- {
--	unsigned int i;
-+	unsigned int i, type;
- 	int err;
- 	struct module *mod;
+ 	int i;
+@@ -309,9 +340,11 @@
+ 		fail_file();
+ 		break;
+ 	case EM_386:
+-	case EM_X86_64:
+ 		custom_sort = x86_sort_relative_table;
+ 		break;
++	case EM_X86_64:
++		custom_sort = x86_64_sort_relative_table;
++		break;
  
-@@ -2961,13 +3005,23 @@ static struct module *setup_load_info(struct load_info *info, int flags)
- 	info->secstrings = (void *)info->hdr
- 		+ info->sechdrs[info->hdr->e_shstrndx].sh_offset;
- 
-+#ifdef CONFIG_X86_PIC
-+	/* For shared objects, we have to make symbols relative
-+	   to the start of their sections (sh_addr) */
-+	if (info->hdr->e_type == ET_DYN) {
-+		make_symbols_relative(info);
-+		type = SHT_DYNSYM;
-+	} else
-+#endif
-+		type = SHT_SYMTAB;
-+
- 	err = rewrite_section_headers(info, flags);
- 	if (err)
- 		return ERR_PTR(err);
- 
- 	/* Find internal symbols and strings. */
- 	for (i = 1; i < info->hdr->e_shnum; i++) {
--		if (info->sechdrs[i].sh_type == SHT_SYMTAB) {
-+		if (info->sechdrs[i].sh_type == type) {
- 			info->index.sym = i;
- 			info->index.str = info->sechdrs[i].sh_link;
- 			info->strtab = (char *)info->hdr
-@@ -3346,6 +3400,16 @@ static struct module *layout_and_allocate(struct load_info *info, int flags)
- 	/* Module has been copied to its final place now: return it. */
- 	mod = (void *)info->sechdrs[info->index.mod].sh_addr;
- 	kmemleak_load_module(mod, info);
-+
-+
-+#ifdef CONFIG_X86_PIC
-+	/* For shared object relocations, calculate the base address
-+	   after the module is moved */
-+	if (info->hdr->e_type == ET_DYN && info->hdr->e_shnum > 1)
-+		mod->shared_base_rel = info->sechdrs[1].sh_addr -
-+			info->sechdrs[1].sh_offset;
-+#endif
-+
- 	return mod;
- }
- 
-diff --git a/scripts/Makefile.modpost b/scripts/Makefile.modpost
-index dd92dbbb..3a3b4b2f 100644
---- a/scripts/Makefile.modpost
-+++ b/scripts/Makefile.modpost
-@@ -118,11 +118,20 @@ targets += $(modules:.ko=.mod.o)
- ARCH_POSTLINK := $(wildcard $(srctree)/arch/$(SRCARCH)/Makefile.postlink)
- 
- # Step 6), final link of the modules with optional arch pass after final link
-+define make_shared_object
-+      $(LD) -shared -nostdlib -ffreestanding $@ -o "$@_" ;                            \
-+      $(PYTHON) $(srctree)/arch/$(SRCARCH)/scripts/genLinker.py "$@_" -o "$@.lds" ;   \
-+      $(LD) -shared -nostdlib -ffreestanding $@ -o "$@_" -T "$@.lds" ;                \
-+      mv "$@_" $@ ;  rm "$@.lds" ;                                                    \
-+      $(PYTHON) $(srctree)/arch/$(SRCARCH)/scripts/genLinker.py $@ -v
-+endef
-+
- quiet_cmd_ld_ko_o = LD [M]  $@
--      cmd_ld_ko_o =                                                     \
--	$(LD) -r $(LDFLAGS)                                             \
--                 $(KBUILD_LDFLAGS_MODULE) $(LDFLAGS_MODULE)             \
--                 -o $@ $(filter-out FORCE,$^) ;                         \
-+      cmd_ld_ko_o =                                                             \
-+	$(LD) -r $(LDFLAGS)                                                       \
-+                 $(KBUILD_LDFLAGS_MODULE) $(LDFLAGS_MODULE)                     \
-+                 -o $@ $(filter-out FORCE,$^) ;                                 \
-+      if [ -n "${CONFIG_X86_PIC}" ] ; then $(call make_shared_object) ; fi ;    \
- 	$(if $(ARCH_POSTLINK), $(MAKE) -f $(ARCH_POSTLINK) $@, true)
- 
- $(modules): %.ko :%.o %.mod.o FORCE
-diff --git a/tools/objtool/check.c b/tools/objtool/check.c
-index f4a25bd1..2930d49e 100644
---- a/tools/objtool/check.c
-+++ b/tools/objtool/check.c
-@@ -179,7 +179,7 @@ static int __dead_end_function(struct objtool_file *file, struct symbol *func,
+ 	case EM_S390:
+ 	case EM_AARCH64:
+diff -urN linux-4.18.20/tools/objtool/check.c linux-4.18.20-new/tools/objtool/check.c
+--- linux-4.18.20/tools/objtool/check.c	2018-12-10 01:04:12.624602762 -0500
++++ linux-4.18.20-new/tools/objtool/check.c	2018-12-23 13:02:22.489703387 -0500
+@@ -179,7 +179,7 @@
  		return 0;
  
  	insn = find_insn(file, func->sec, func->offset);
@@ -951,7 +923,7 @@ index f4a25bd1..2930d49e 100644
  		return 0;
  
  	func_for_each_insn_all(file, func, insn) {
-@@ -233,6 +233,8 @@ static int __dead_end_function(struct objtool_file *file, struct symbol *func,
+@@ -233,6 +233,8 @@
  
  static int dead_end_function(struct objtool_file *file, struct symbol *func)
  {
@@ -960,7 +932,7 @@ index f4a25bd1..2930d49e 100644
  	return __dead_end_function(file, func, 0);
  }
  
-@@ -581,7 +583,7 @@ static int add_call_destinations(struct objtool_file *file)
+@@ -581,7 +583,7 @@
  	struct rela *rela;
  
  	for_each_insn(file, insn) {
@@ -969,7 +941,7 @@ index f4a25bd1..2930d49e 100644
  			continue;
  
  		rela = find_rela_by_dest_range(insn->sec, insn->offset,
-@@ -590,8 +592,8 @@ static int add_call_destinations(struct objtool_file *file)
+@@ -590,8 +592,8 @@
  			dest_off = insn->offset + insn->len + insn->immediate;
  			insn->call_dest = find_symbol_by_offset(insn->sec,
  								dest_off);
@@ -980,7 +952,7 @@ index f4a25bd1..2930d49e 100644
  				WARN_FUNC("unsupported intra-function call",
  					  insn->sec, insn->offset);
  				if (retpoline)
-@@ -602,8 +604,9 @@ static int add_call_destinations(struct objtool_file *file)
+@@ -602,8 +604,9 @@
  		} else if (rela->sym->type == STT_SECTION) {
  			insn->call_dest = find_symbol_by_offset(rela->sym->sec,
  								rela->addend+4);
@@ -992,7 +964,7 @@ index f4a25bd1..2930d49e 100644
  				WARN_FUNC("can't find call dest symbol at %s+0x%x",
  					  insn->sec, insn->offset,
  					  rela->sym->sec->name,
-@@ -836,6 +839,11 @@ static int add_switch_table(struct objtool_file *file, struct instruction *insn,
+@@ -836,6 +839,11 @@
  	struct symbol *pfunc = insn->func->pfunc;
  	unsigned int prev_offset = 0;
  
@@ -1004,7 +976,7 @@ index f4a25bd1..2930d49e 100644
  	list_for_each_entry_from(rela, &file->rodata->rela->rela_list, list) {
  		if (rela == next_table)
  			break;
-@@ -1244,7 +1252,7 @@ static int decode_sections(struct objtool_file *file)
+@@ -1244,7 +1252,7 @@
  
  static bool is_fentry_call(struct instruction *insn)
  {
@@ -1013,7 +985,7 @@ index f4a25bd1..2930d49e 100644
  	    insn->call_dest->type == STT_NOTYPE &&
  	    !strcmp(insn->call_dest->name, "__fentry__"))
  		return true;
-@@ -1889,6 +1897,7 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
+@@ -1889,6 +1897,7 @@
  			return 0;
  
  		case INSN_CALL:
@@ -1021,7 +993,7 @@ index f4a25bd1..2930d49e 100644
  			if (is_fentry_call(insn))
  				break;
  
-@@ -1898,8 +1907,6 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
+@@ -1898,8 +1907,6 @@
  			if (ret == -1)
  				return 1;
  
@@ -1030,11 +1002,11 @@ index f4a25bd1..2930d49e 100644
  			if (!no_fp && func && !has_valid_stack_frame(&state)) {
  				WARN_FUNC("call without frame pointer save/setup",
  					  sec, insn->offset);
-@@ -1929,12 +1936,15 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
+@@ -1929,12 +1936,15 @@
  			break;
  
  		case INSN_JUMP_DYNAMIC:
-+			/* XXX: Does not work properly with PIC modules. */
++			/* XXX: Does not work properly with PIC code. */
 +#if 0
  			if (func && list_empty(&insn->alts) &&
  			    has_modified_stack_frame(&state)) {
@@ -1046,11 +1018,11 @@ index f4a25bd1..2930d49e 100644
  
  			return 0;
  
-@@ -2015,6 +2025,11 @@ static int validate_retpoline(struct objtool_file *file)
+@@ -2015,6 +2025,11 @@
  		if (!strcmp(insn->sec->name, ".init.text") && !module)
  			continue;
  
-+		/* ignore ftrace calls in PIC modules */
++		/* ignore ftrace calls in PIC code */
 +		if (!insn->call_dest ||
 +		    !strcmp(insn->call_dest->name, "__fentry__"))
 +			continue;
@@ -1058,7 +1030,7 @@ index f4a25bd1..2930d49e 100644
  		WARN_FUNC("indirect %s found in RETPOLINE build",
  			  insn->sec, insn->offset,
  			  insn->type == INSN_JUMP_DYNAMIC ? "jump" : "call");
-@@ -2027,13 +2042,15 @@ static int validate_retpoline(struct objtool_file *file)
+@@ -2027,13 +2042,15 @@
  
  static bool is_kasan_insn(struct instruction *insn)
  {
@@ -1076,3 +1048,70 @@ index f4a25bd1..2930d49e 100644
  		!strcmp(insn->call_dest->name,
  			"__ubsan_handle_builtin_unreachable"));
  }
+diff -urN linux-4.18.20/tools/objtool/special.c linux-4.18.20-new/tools/objtool/special.c
+--- linux-4.18.20/tools/objtool/special.c	2018-12-10 01:04:12.624602762 -0500
++++ linux-4.18.20-new/tools/objtool/special.c	2018-12-23 13:06:35.557749951 -0500
+@@ -27,6 +27,7 @@
+ #include "warn.h"
+ 
+ #define EX_ENTRY_SIZE		12
++#define EX_ENTRY_SIZE64		16
+ #define EX_ORIG_OFFSET		0
+ #define EX_NEW_OFFSET		4
+ 
+@@ -78,6 +79,33 @@
+ 	{},
+ };
+ 
++struct special_entry entries64[] = {
++	{
++		.sec = ".altinstructions",
++		.group = true,
++		.size = ALT_ENTRY_SIZE,
++		.orig = ALT_ORIG_OFFSET,
++		.orig_len = ALT_ORIG_LEN_OFFSET,
++		.new = ALT_NEW_OFFSET,
++		.new_len = ALT_NEW_LEN_OFFSET,
++		.feature = ALT_FEATURE_OFFSET,
++	},
++	{
++		.sec = "__jump_table",
++		.jump_or_nop = true,
++		.size = JUMP_ENTRY_SIZE,
++		.orig = JUMP_ORIG_OFFSET,
++		.new = JUMP_NEW_OFFSET,
++	},
++	{
++		.sec = "__ex_table",
++		.size = EX_ENTRY_SIZE64,
++		.orig = EX_ORIG_OFFSET,
++		.new = EX_NEW_OFFSET,
++	},
++	{},
++};
++
+ static int get_alt_entry(struct elf *elf, struct special_entry *entry,
+ 			 struct section *sec, int idx,
+ 			 struct special_alt *alt)
+@@ -152,7 +180,7 @@
+  */
+ int special_get_alts(struct elf *elf, struct list_head *alts)
+ {
+-	struct special_entry *entry;
++	struct special_entry *entry = entries;
+ 	struct section *sec;
+ 	unsigned int nr_entries;
+ 	struct special_alt *alt;
+@@ -160,7 +188,11 @@
+ 
+ 	INIT_LIST_HEAD(alts);
+ 
+-	for (entry = entries; entry->sec; entry++) {
++	/* ex_table entry size is different for x86-64 */
++	if (elf->ehdr.e_machine == EM_X86_64)
++		entry = entries64;
++
++	for (; entry->sec; entry++) {
+ 		sec = find_section_by_name(elf, entry->sec);
+ 		if (!sec)
+ 			continue;
