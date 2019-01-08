@@ -1,6 +1,49 @@
-diff -urN linux-4.18.20/arch/x86/crypto/aes-x86_64-asm_64.S linux-4.18.20-new/arch/x86/crypto/aes-x86_64-asm_64.S
---- linux-4.18.20/arch/x86/crypto/aes-x86_64-asm_64.S	2018-12-10 01:04:12.992606671 -0500
-+++ linux-4.18.20-new/arch/x86/crypto/aes-x86_64-asm_64.S	2018-12-23 13:02:22.469702762 -0500
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 5852d3cd..034f03ab 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -2238,9 +2238,19 @@ config X86_PIE
+ 	select DYNAMIC_MODULE_BASE
+ 	select MODULE_REL_CRCS if MODVERSIONS
+ 
++config X86_PIC
++	bool
++	prompt "Enable PIC modules"
++	depends on X86_64
++	default y
++	select MODULE_REL_CRCS if MODVERSIONS
++	---help---
++	  Compile position-independent modules which can
++	  be placed anywhere in the 64-bit address space.
++
+ config RANDOMIZE_BASE_LARGE
+ 	bool "Increase the randomization range of the kernel image"
+-	depends on X86_64 && RANDOMIZE_BASE
++	depends on X86_64 && RANDOMIZE_BASE && X86_PIC
+ 	select X86_PIE
+ 	select X86_MODULE_PLTS if MODULES
+ 	default n
+diff --git a/arch/x86/Makefile b/arch/x86/Makefile
+index 881bf431..704de693 100644
+--- a/arch/x86/Makefile
++++ b/arch/x86/Makefile
+@@ -136,6 +136,12 @@ else
+         KBUILD_CFLAGS += $(cflags-y)
+ 
+         KBUILD_CFLAGS += -mno-red-zone
++
++ifdef CONFIG_X86_PIC
++        KBUILD_CFLAGS_MODULE += -fPIC -fno-plt -mcmodel=small -fno-stack-protector -fvisibility=hidden
++endif
++        KBUILD_LDFLAGS_MODULE += -T $(srctree)/arch/x86/kernel/module.lds
++
+ ifdef CONFIG_X86_PIE
+         KBUILD_CFLAGS += -fPIE
+         KBUILD_LDFLAGS_MODULE += -T $(srctree)/arch/x86/kernel/module.lds
+diff --git a/arch/x86/crypto/aes-x86_64-asm_64.S b/arch/x86/crypto/aes-x86_64-asm_64.S
+index 86fa068e..6ee05ff3 100644
+--- a/arch/x86/crypto/aes-x86_64-asm_64.S
++++ b/arch/x86/crypto/aes-x86_64-asm_64.S
 @@ -17,6 +17,7 @@
  
  #include <linux/linkage.h>
@@ -23,9 +66,10 @@ diff -urN linux-4.18.20/arch/x86/crypto/aes-x86_64-asm_64.S linux-4.18.20-new/ar
  	xorl	(RBASE,reg_i,4), reg_o;
  
  #define round(TAB,OFFSET,r1,r2,r3,r4,r5,r6,r7,r8,ra,rb,rc,rd) \
-diff -urN linux-4.18.20/arch/x86/crypto/cast5-avx-x86_64-asm_64.S linux-4.18.20-new/arch/x86/crypto/cast5-avx-x86_64-asm_64.S
---- linux-4.18.20/arch/x86/crypto/cast5-avx-x86_64-asm_64.S	2018-12-10 01:04:12.992606671 -0500
-+++ linux-4.18.20-new/arch/x86/crypto/cast5-avx-x86_64-asm_64.S	2018-12-23 13:02:22.469702762 -0500
+diff --git a/arch/x86/crypto/cast5-avx-x86_64-asm_64.S b/arch/x86/crypto/cast5-avx-x86_64-asm_64.S
+index 64eb5c87..62d2fb96 100644
+--- a/arch/x86/crypto/cast5-avx-x86_64-asm_64.S
++++ b/arch/x86/crypto/cast5-avx-x86_64-asm_64.S
 @@ -25,6 +25,7 @@
  
  #include <linux/linkage.h>
@@ -56,9 +100,10 @@ diff -urN linux-4.18.20/arch/x86/crypto/cast5-avx-x86_64-asm_64.S linux-4.18.20-
  	op3		(RID1, RID2, 4), dst ## d; \
  	interleave_op(il_reg);
  
-diff -urN linux-4.18.20/arch/x86/crypto/cast6-avx-x86_64-asm_64.S linux-4.18.20-new/arch/x86/crypto/cast6-avx-x86_64-asm_64.S
---- linux-4.18.20/arch/x86/crypto/cast6-avx-x86_64-asm_64.S	2018-12-10 01:04:12.992606671 -0500
-+++ linux-4.18.20-new/arch/x86/crypto/cast6-avx-x86_64-asm_64.S	2018-12-23 13:02:22.469702762 -0500
+diff --git a/arch/x86/crypto/cast6-avx-x86_64-asm_64.S b/arch/x86/crypto/cast6-avx-x86_64-asm_64.S
+index da1b7e4a..8177f72b 100644
+--- a/arch/x86/crypto/cast6-avx-x86_64-asm_64.S
++++ b/arch/x86/crypto/cast6-avx-x86_64-asm_64.S
 @@ -25,6 +25,7 @@
  
  #include <linux/linkage.h>
@@ -89,9 +134,10 @@ diff -urN linux-4.18.20/arch/x86/crypto/cast6-avx-x86_64-asm_64.S linux-4.18.20-
  	op3		(RID1, RID2, 4), dst ## d; \
  	interleave_op(il_reg);
  
-diff -urN linux-4.18.20/arch/x86/crypto/sha1-mb/sha1_mb_mgr_flush_avx2.S linux-4.18.20-new/arch/x86/crypto/sha1-mb/sha1_mb_mgr_flush_avx2.S
---- linux-4.18.20/arch/x86/crypto/sha1-mb/sha1_mb_mgr_flush_avx2.S	2018-12-10 01:04:12.992606671 -0500
-+++ linux-4.18.20-new/arch/x86/crypto/sha1-mb/sha1_mb_mgr_flush_avx2.S	2018-12-23 13:02:22.469702762 -0500
+diff --git a/arch/x86/crypto/sha1-mb/sha1_mb_mgr_flush_avx2.S b/arch/x86/crypto/sha1-mb/sha1_mb_mgr_flush_avx2.S
+index 7cfba738..0cd522dd 100644
+--- a/arch/x86/crypto/sha1-mb/sha1_mb_mgr_flush_avx2.S
++++ b/arch/x86/crypto/sha1-mb/sha1_mb_mgr_flush_avx2.S
 @@ -53,6 +53,7 @@
   */
  #include <linux/linkage.h>
@@ -100,7 +146,7 @@ diff -urN linux-4.18.20/arch/x86/crypto/sha1-mb/sha1_mb_mgr_flush_avx2.S linux-4
  #include "sha1_mb_mgr_datastruct.S"
  
  
-@@ -183,7 +184,7 @@
+@@ -183,7 +184,7 @@ LABEL skip_ %I
  
  	# "state" and "args" are the same address, arg1
  	# len is arg2
@@ -109,9 +155,10 @@ diff -urN linux-4.18.20/arch/x86/crypto/sha1-mb/sha1_mb_mgr_flush_avx2.S linux-4
  	# state and idx are intact
  
  
-diff -urN linux-4.18.20/arch/x86/crypto/sha1-mb/sha1_mb_mgr_submit_avx2.S linux-4.18.20-new/arch/x86/crypto/sha1-mb/sha1_mb_mgr_submit_avx2.S
---- linux-4.18.20/arch/x86/crypto/sha1-mb/sha1_mb_mgr_submit_avx2.S	2018-12-10 01:04:12.992606671 -0500
-+++ linux-4.18.20-new/arch/x86/crypto/sha1-mb/sha1_mb_mgr_submit_avx2.S	2018-12-23 13:02:22.473702887 -0500
+diff --git a/arch/x86/crypto/sha1-mb/sha1_mb_mgr_submit_avx2.S b/arch/x86/crypto/sha1-mb/sha1_mb_mgr_submit_avx2.S
+index 7a93b1c0..2138f3e6 100644
+--- a/arch/x86/crypto/sha1-mb/sha1_mb_mgr_submit_avx2.S
++++ b/arch/x86/crypto/sha1-mb/sha1_mb_mgr_submit_avx2.S
 @@ -54,6 +54,7 @@
  
  #include <linux/linkage.h>
@@ -120,7 +167,7 @@ diff -urN linux-4.18.20/arch/x86/crypto/sha1-mb/sha1_mb_mgr_submit_avx2.S linux-
  #include "sha1_mb_mgr_datastruct.S"
  
  
-@@ -163,7 +164,7 @@
+@@ -163,7 +164,7 @@ start_loop:
  
  	# "state" and "args" are the same address, arg1
  	# len is arg2
@@ -129,9 +176,10 @@ diff -urN linux-4.18.20/arch/x86/crypto/sha1-mb/sha1_mb_mgr_submit_avx2.S linux-
  
  	# state and idx are intact
  
-diff -urN linux-4.18.20/arch/x86/crypto/sha256-mb/sha256_mb_mgr_flush_avx2.S linux-4.18.20-new/arch/x86/crypto/sha256-mb/sha256_mb_mgr_flush_avx2.S
---- linux-4.18.20/arch/x86/crypto/sha256-mb/sha256_mb_mgr_flush_avx2.S	2018-12-10 01:04:12.992606671 -0500
-+++ linux-4.18.20-new/arch/x86/crypto/sha256-mb/sha256_mb_mgr_flush_avx2.S	2018-12-23 13:02:22.473702887 -0500
+diff --git a/arch/x86/crypto/sha256-mb/sha256_mb_mgr_flush_avx2.S b/arch/x86/crypto/sha256-mb/sha256_mb_mgr_flush_avx2.S
+index d2364c55..c4292578 100644
+--- a/arch/x86/crypto/sha256-mb/sha256_mb_mgr_flush_avx2.S
++++ b/arch/x86/crypto/sha256-mb/sha256_mb_mgr_flush_avx2.S
 @@ -52,6 +52,7 @@
   */
  #include <linux/linkage.h>
@@ -140,7 +188,7 @@ diff -urN linux-4.18.20/arch/x86/crypto/sha256-mb/sha256_mb_mgr_flush_avx2.S lin
  #include "sha256_mb_mgr_datastruct.S"
  
  .extern sha256_x8_avx2
-@@ -181,7 +182,7 @@
+@@ -181,7 +182,7 @@ LABEL skip_ %I
  
  	# "state" and "args" are the same address, arg1
  	# len is arg2
@@ -149,9 +197,10 @@ diff -urN linux-4.18.20/arch/x86/crypto/sha256-mb/sha256_mb_mgr_flush_avx2.S lin
  	# state and idx are intact
  
  len_is_0:
-diff -urN linux-4.18.20/arch/x86/crypto/sha256-mb/sha256_mb_mgr_submit_avx2.S linux-4.18.20-new/arch/x86/crypto/sha256-mb/sha256_mb_mgr_submit_avx2.S
---- linux-4.18.20/arch/x86/crypto/sha256-mb/sha256_mb_mgr_submit_avx2.S	2018-12-10 01:04:12.992606671 -0500
-+++ linux-4.18.20-new/arch/x86/crypto/sha256-mb/sha256_mb_mgr_submit_avx2.S	2018-12-23 13:02:22.473702887 -0500
+diff --git a/arch/x86/crypto/sha256-mb/sha256_mb_mgr_submit_avx2.S b/arch/x86/crypto/sha256-mb/sha256_mb_mgr_submit_avx2.S
+index b36ae745..e5fe9992 100644
+--- a/arch/x86/crypto/sha256-mb/sha256_mb_mgr_submit_avx2.S
++++ b/arch/x86/crypto/sha256-mb/sha256_mb_mgr_submit_avx2.S
 @@ -53,6 +53,7 @@
  
  #include <linux/linkage.h>
@@ -160,7 +209,7 @@ diff -urN linux-4.18.20/arch/x86/crypto/sha256-mb/sha256_mb_mgr_submit_avx2.S li
  #include "sha256_mb_mgr_datastruct.S"
  
  .extern sha256_x8_avx2
-@@ -164,7 +165,7 @@
+@@ -164,7 +165,7 @@ start_loop:
  
  	# "state" and "args" are the same address, arg1
  	# len is arg2
@@ -169,9 +218,10 @@ diff -urN linux-4.18.20/arch/x86/crypto/sha256-mb/sha256_mb_mgr_submit_avx2.S li
  
  	# state and idx are intact
  
-diff -urN linux-4.18.20/arch/x86/crypto/sha512-mb/sha512_mb_mgr_flush_avx2.S linux-4.18.20-new/arch/x86/crypto/sha512-mb/sha512_mb_mgr_flush_avx2.S
---- linux-4.18.20/arch/x86/crypto/sha512-mb/sha512_mb_mgr_flush_avx2.S	2018-12-10 01:04:12.992606671 -0500
-+++ linux-4.18.20-new/arch/x86/crypto/sha512-mb/sha512_mb_mgr_flush_avx2.S	2018-12-23 13:02:22.473702887 -0500
+diff --git a/arch/x86/crypto/sha512-mb/sha512_mb_mgr_flush_avx2.S b/arch/x86/crypto/sha512-mb/sha512_mb_mgr_flush_avx2.S
+index 7c629cae..7fbbc217 100644
+--- a/arch/x86/crypto/sha512-mb/sha512_mb_mgr_flush_avx2.S
++++ b/arch/x86/crypto/sha512-mb/sha512_mb_mgr_flush_avx2.S
 @@ -53,6 +53,7 @@
  
  #include <linux/linkage.h>
@@ -180,7 +230,7 @@ diff -urN linux-4.18.20/arch/x86/crypto/sha512-mb/sha512_mb_mgr_flush_avx2.S lin
  #include "sha512_mb_mgr_datastruct.S"
  
  .extern sha512_x4_avx2
-@@ -177,7 +178,7 @@
+@@ -177,7 +178,7 @@ LABEL skip_ %I
  
          # "state" and "args" are the same address, arg1
          # len is arg2
@@ -189,9 +239,10 @@ diff -urN linux-4.18.20/arch/x86/crypto/sha512-mb/sha512_mb_mgr_flush_avx2.S lin
          # state and idx are intact
  
  len_is_0:
-diff -urN linux-4.18.20/arch/x86/crypto/sha512-mb/sha512_mb_mgr_submit_avx2.S linux-4.18.20-new/arch/x86/crypto/sha512-mb/sha512_mb_mgr_submit_avx2.S
---- linux-4.18.20/arch/x86/crypto/sha512-mb/sha512_mb_mgr_submit_avx2.S	2018-12-10 01:04:12.992606671 -0500
-+++ linux-4.18.20-new/arch/x86/crypto/sha512-mb/sha512_mb_mgr_submit_avx2.S	2018-12-23 13:02:22.473702887 -0500
+diff --git a/arch/x86/crypto/sha512-mb/sha512_mb_mgr_submit_avx2.S b/arch/x86/crypto/sha512-mb/sha512_mb_mgr_submit_avx2.S
+index 4ba709ba..dd3318ba 100644
+--- a/arch/x86/crypto/sha512-mb/sha512_mb_mgr_submit_avx2.S
++++ b/arch/x86/crypto/sha512-mb/sha512_mb_mgr_submit_avx2.S
 @@ -53,6 +53,7 @@
  
  #include <linux/linkage.h>
@@ -200,7 +251,7 @@ diff -urN linux-4.18.20/arch/x86/crypto/sha512-mb/sha512_mb_mgr_submit_avx2.S li
  #include "sha512_mb_mgr_datastruct.S"
  
  .extern sha512_x4_avx2
-@@ -167,7 +168,7 @@
+@@ -167,7 +168,7 @@ start_loop:
  
  	# "state" and "args" are the same address, arg1
  	# len is arg2
@@ -209,10 +260,11 @@ diff -urN linux-4.18.20/arch/x86/crypto/sha512-mb/sha512_mb_mgr_submit_avx2.S li
  	# state and idx are intact
  
  len_is_0:
-diff -urN linux-4.18.20/arch/x86/include/asm/alternative.h linux-4.18.20-new/arch/x86/include/asm/alternative.h
---- linux-4.18.20/arch/x86/include/asm/alternative.h	2018-12-10 01:04:12.996606714 -0500
-+++ linux-4.18.20-new/arch/x86/include/asm/alternative.h	2018-12-23 13:02:22.477703012 -0500
-@@ -207,8 +207,8 @@
+diff --git a/arch/x86/include/asm/alternative.h b/arch/x86/include/asm/alternative.h
+index 4cd6a3b7..30b18aa7 100644
+--- a/arch/x86/include/asm/alternative.h
++++ b/arch/x86/include/asm/alternative.h
+@@ -207,8 +207,8 @@ static inline int alternatives_text_reserved(void *start, void *end)
  
  /* Like alternative_io, but for replacing a direct call with another one. */
  #define alternative_call(oldfunc, newfunc, feature, output, input...)	\
@@ -223,7 +275,7 @@ diff -urN linux-4.18.20/arch/x86/include/asm/alternative.h linux-4.18.20-new/arc
  
  /*
   * Like alternative_call, but there are two features and respective functions.
-@@ -218,11 +218,11 @@
+@@ -218,11 +218,11 @@ static inline int alternatives_text_reserved(void *start, void *end)
   */
  #define alternative_call_2(oldfunc, newfunc1, feature1, newfunc2, feature2,   \
  			   output, input...)				      \
@@ -239,9 +291,10 @@ diff -urN linux-4.18.20/arch/x86/include/asm/alternative.h linux-4.18.20-new/arc
  
  /*
   * use this macro(s) if you need more than one output parameter
-diff -urN linux-4.18.20/arch/x86/include/asm/arch_hweight.h linux-4.18.20-new/arch/x86/include/asm/arch_hweight.h
---- linux-4.18.20/arch/x86/include/asm/arch_hweight.h	2018-12-10 01:04:12.996606714 -0500
-+++ linux-4.18.20-new/arch/x86/include/asm/arch_hweight.h	2018-12-23 13:02:22.477703012 -0500
+diff --git a/arch/x86/include/asm/arch_hweight.h b/arch/x86/include/asm/arch_hweight.h
+index 34a10b2d..4f1edb06 100644
+--- a/arch/x86/include/asm/arch_hweight.h
++++ b/arch/x86/include/asm/arch_hweight.h
 @@ -3,6 +3,7 @@
  #define _ASM_X86_HWEIGHT_H
  
@@ -250,7 +303,7 @@ diff -urN linux-4.18.20/arch/x86/include/asm/arch_hweight.h linux-4.18.20-new/ar
  
  #ifdef CONFIG_64BIT
  /* popcnt %edi, %eax */
-@@ -24,7 +25,7 @@
+@@ -24,7 +25,7 @@ static __always_inline unsigned int __arch_hweight32(unsigned int w)
  {
  	unsigned int res;
  
@@ -259,7 +312,7 @@ diff -urN linux-4.18.20/arch/x86/include/asm/arch_hweight.h linux-4.18.20-new/ar
  			 : "="REG_OUT (res)
  			 : REG_IN (w));
  
-@@ -52,7 +53,7 @@
+@@ -52,7 +53,7 @@ static __always_inline unsigned long __arch_hweight64(__u64 w)
  {
  	unsigned long res;
  
@@ -268,9 +321,10 @@ diff -urN linux-4.18.20/arch/x86/include/asm/arch_hweight.h linux-4.18.20-new/ar
  			 : "="REG_OUT (res)
  			 : REG_IN (w));
  
-diff -urN linux-4.18.20/arch/x86/include/asm/asm.h linux-4.18.20-new/arch/x86/include/asm/asm.h
---- linux-4.18.20/arch/x86/include/asm/asm.h	2018-12-10 01:04:13.000606757 -0500
-+++ linux-4.18.20-new/arch/x86/include/asm/asm.h	2018-12-23 13:02:22.477703012 -0500
+diff --git a/arch/x86/include/asm/asm.h b/arch/x86/include/asm/asm.h
+index bab567e4..4e2beb93 100644
+--- a/arch/x86/include/asm/asm.h
++++ b/arch/x86/include/asm/asm.h
 @@ -2,6 +2,30 @@
  #ifndef _ASM_X86_ASM_H
  #define _ASM_X86_ASM_H
@@ -328,10 +382,11 @@ diff -urN linux-4.18.20/arch/x86/include/asm/asm.h linux-4.18.20-new/arch/x86/in
  	" .popsection\n"
  
  # define _ASM_EXTABLE(from, to)					\
-diff -urN linux-4.18.20/arch/x86/include/asm/elf.h linux-4.18.20-new/arch/x86/include/asm/elf.h
---- linux-4.18.20/arch/x86/include/asm/elf.h	2018-12-10 01:04:12.996606714 -0500
-+++ linux-4.18.20-new/arch/x86/include/asm/elf.h	2018-12-23 13:02:22.477703012 -0500
-@@ -63,7 +63,12 @@
+diff --git a/arch/x86/include/asm/elf.h b/arch/x86/include/asm/elf.h
+index 0d157d2a..3e1859a2 100644
+--- a/arch/x86/include/asm/elf.h
++++ b/arch/x86/include/asm/elf.h
+@@ -63,7 +63,12 @@ typedef struct user_fxsr_struct elf_fpxregset_t;
  #define R_X86_64_8		14	/* Direct 8 bit sign extended  */
  #define R_X86_64_PC8		15	/* 8 bit sign extended pc relative */
  
@@ -345,23 +400,25 @@ diff -urN linux-4.18.20/arch/x86/include/asm/elf.h linux-4.18.20-new/arch/x86/in
  
  /*
   * These are used to set parameters in the core dumps.
-diff -urN linux-4.18.20/arch/x86/include/asm/extable.h linux-4.18.20-new/arch/x86/include/asm/extable.h
---- linux-4.18.20/arch/x86/include/asm/extable.h	2018-12-10 01:04:12.996606714 -0500
-+++ linux-4.18.20-new/arch/x86/include/asm/extable.h	2018-12-23 13:02:22.477703012 -0500
+diff --git a/arch/x86/include/asm/extable.h b/arch/x86/include/asm/extable.h
+index f9c3a5d5..dd4897ea 100644
+--- a/arch/x86/include/asm/extable.h
++++ b/arch/x86/include/asm/extable.h
 @@ -15,7 +15,8 @@
   */
  
  struct exception_table_entry {
 -	int insn, fixup, handler;
 +	int insn, fixup;
-+	int handler, pad;
++	long handler;
  };
  struct pt_regs;
  
-diff -urN linux-4.18.20/arch/x86/include/asm/jump_label.h linux-4.18.20-new/arch/x86/include/asm/jump_label.h
---- linux-4.18.20/arch/x86/include/asm/jump_label.h	2018-12-10 01:04:13.000606757 -0500
-+++ linux-4.18.20-new/arch/x86/include/asm/jump_label.h	2018-12-23 13:02:22.477703012 -0500
-@@ -37,7 +37,7 @@
+diff --git a/arch/x86/include/asm/jump_label.h b/arch/x86/include/asm/jump_label.h
+index dfdcdc39..d8b481ab 100644
+--- a/arch/x86/include/asm/jump_label.h
++++ b/arch/x86/include/asm/jump_label.h
+@@ -37,7 +37,7 @@ static __always_inline bool arch_static_branch(struct static_key *key, bool bran
  		".byte " __stringify(STATIC_KEY_INIT_NOP) "\n\t"
  		".pushsection __jump_table,  \"aw\" \n\t"
  		_ASM_ALIGN "\n\t"
@@ -370,7 +427,7 @@ diff -urN linux-4.18.20/arch/x86/include/asm/jump_label.h linux-4.18.20-new/arch
  		".popsection \n\t"
  		: :  "X" (&((char *)key)[branch]) : : l_yes);
  
-@@ -53,7 +53,7 @@
+@@ -53,7 +53,7 @@ static __always_inline bool arch_static_branch_jump(struct static_key *key, bool
  		"2:\n\t"
  		".pushsection __jump_table,  \"aw\" \n\t"
  		_ASM_ALIGN "\n\t"
@@ -379,10 +436,11 @@ diff -urN linux-4.18.20/arch/x86/include/asm/jump_label.h linux-4.18.20-new/arch
  		".popsection \n\t"
  		: :  "X" (&((char *)key)[branch]) : : l_yes);
  
-diff -urN linux-4.18.20/arch/x86/include/asm/kvm_host.h linux-4.18.20-new/arch/x86/include/asm/kvm_host.h
---- linux-4.18.20/arch/x86/include/asm/kvm_host.h	2018-12-10 01:04:13.000606757 -0500
-+++ linux-4.18.20-new/arch/x86/include/asm/kvm_host.h	2018-12-23 13:02:22.477703012 -0500
-@@ -1394,20 +1394,31 @@
+diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
+index b26d9672..c157cb52 100644
+--- a/arch/x86/include/asm/kvm_host.h
++++ b/arch/x86/include/asm/kvm_host.h
+@@ -1394,20 +1394,31 @@ enum {
   */
  asmlinkage void kvm_spurious_fault(void);
  
@@ -416,9 +474,10 @@ diff -urN linux-4.18.20/arch/x86/include/asm/kvm_host.h linux-4.18.20-new/arch/x
  	".popsection \n\t" \
  	_ASM_EXTABLE(666b, 667b)
  
-diff -urN linux-4.18.20/arch/x86/include/asm/module.h linux-4.18.20-new/arch/x86/include/asm/module.h
---- linux-4.18.20/arch/x86/include/asm/module.h	2018-12-10 01:04:13.000606757 -0500
-+++ linux-4.18.20-new/arch/x86/include/asm/module.h	2018-12-23 13:02:22.477703012 -0500
+diff --git a/arch/x86/include/asm/module.h b/arch/x86/include/asm/module.h
+index 68ff05e1..1f60056f 100644
+--- a/arch/x86/include/asm/module.h
++++ b/arch/x86/include/asm/module.h
 @@ -5,13 +5,11 @@
  #include <asm-generic/module.h>
  #include <asm/orc_types.h>
@@ -433,7 +492,7 @@ diff -urN linux-4.18.20/arch/x86/include/asm/module.h linux-4.18.20-new/arch/x86
  
  struct mod_arch_specific {
  #ifdef CONFIG_UNWINDER_ORC
-@@ -19,9 +17,7 @@
+@@ -19,9 +17,7 @@ struct mod_arch_specific {
  	int *orc_unwind_ip;
  	struct orc_entry *orc_unwind;
  #endif
@@ -443,10 +502,11 @@ diff -urN linux-4.18.20/arch/x86/include/asm/module.h linux-4.18.20-new/arch/x86
  };
  
  #ifdef CONFIG_X86_64
-diff -urN linux-4.18.20/arch/x86/include/asm/paravirt_types.h linux-4.18.20-new/arch/x86/include/asm/paravirt_types.h
---- linux-4.18.20/arch/x86/include/asm/paravirt_types.h	2018-12-10 01:04:12.996606714 -0500
-+++ linux-4.18.20-new/arch/x86/include/asm/paravirt_types.h	2018-12-23 13:02:22.481703137 -0500
-@@ -337,7 +337,7 @@
+diff --git a/arch/x86/include/asm/paravirt_types.h b/arch/x86/include/asm/paravirt_types.h
+index 140747a9..c59ebedd 100644
+--- a/arch/x86/include/asm/paravirt_types.h
++++ b/arch/x86/include/asm/paravirt_types.h
+@@ -337,7 +337,7 @@ extern struct pv_lock_ops pv_lock_ops;
  #define PARAVIRT_PATCH(x)					\
  	(offsetof(struct paravirt_patch_template, x) / sizeof(void *))
  
@@ -455,7 +515,7 @@ diff -urN linux-4.18.20/arch/x86/include/asm/paravirt_types.h linux-4.18.20-new/
  #define paravirt_opptr_call "a"
  #define paravirt_opptr_type "p"
  #else
-@@ -355,7 +355,11 @@
+@@ -355,7 +355,11 @@ extern struct pv_lock_ops pv_lock_ops;
   * Generate some code, and mark it as patchable by the
   * apply_paravirt() alternate instruction patcher.
   */
@@ -468,7 +528,7 @@ diff -urN linux-4.18.20/arch/x86/include/asm/paravirt_types.h linux-4.18.20-new/
  	"771:\n\t" insn_string "\n" "772:\n"		\
  	".pushsection .parainstructions,\"a\"\n"	\
  	_ASM_ALIGN "\n"					\
-@@ -364,6 +368,7 @@
+@@ -364,6 +368,7 @@ extern struct pv_lock_ops pv_lock_ops;
  	"  .byte 772b-771b\n"				\
  	"  .short " clobber "\n"			\
  	".popsection\n"
@@ -476,10 +536,11 @@ diff -urN linux-4.18.20/arch/x86/include/asm/paravirt_types.h linux-4.18.20-new/
  
  /* Generate patchable code, with the default asm parameters. */
  #define paravirt_alt(insn_string)					\
-diff -urN linux-4.18.20/arch/x86/include/asm/percpu.h linux-4.18.20-new/arch/x86/include/asm/percpu.h
---- linux-4.18.20/arch/x86/include/asm/percpu.h	2018-12-10 01:04:12.996606714 -0500
-+++ linux-4.18.20-new/arch/x86/include/asm/percpu.h	2018-12-23 13:02:22.481703137 -0500
-@@ -216,7 +216,7 @@
+diff --git a/arch/x86/include/asm/percpu.h b/arch/x86/include/asm/percpu.h
+index cb0b7562..80de0e1e 100644
+--- a/arch/x86/include/asm/percpu.h
++++ b/arch/x86/include/asm/percpu.h
+@@ -216,7 +216,7 @@ do {									\
  })
  
  /* Position Independent code uses relative addresses only */
@@ -488,10 +549,11 @@ diff -urN linux-4.18.20/arch/x86/include/asm/percpu.h linux-4.18.20-new/arch/x86
  #define __percpu_stable_arg __percpu_arg(a1)
  #else
  #define __percpu_stable_arg __percpu_arg(P1)
-diff -urN linux-4.18.20/arch/x86/include/asm/uaccess.h linux-4.18.20-new/arch/x86/include/asm/uaccess.h
---- linux-4.18.20/arch/x86/include/asm/uaccess.h	2018-12-10 01:04:13.000606757 -0500
-+++ linux-4.18.20-new/arch/x86/include/asm/uaccess.h	2018-12-23 13:02:22.481703137 -0500
-@@ -174,7 +174,7 @@
+diff --git a/arch/x86/include/asm/uaccess.h b/arch/x86/include/asm/uaccess.h
+index aae77eb8..c281644a 100644
+--- a/arch/x86/include/asm/uaccess.h
++++ b/arch/x86/include/asm/uaccess.h
+@@ -174,7 +174,7 @@ __typeof__(__builtin_choose_expr(sizeof(x) > sizeof(0UL), 0ULL, 0UL))
  	register __inttype(*(ptr)) __val_gu asm("%"_ASM_DX);		\
  	__chk_user_ptr(ptr);						\
  	might_fault();							\
@@ -500,7 +562,7 @@ diff -urN linux-4.18.20/arch/x86/include/asm/uaccess.h linux-4.18.20-new/arch/x8
  		     : "=a" (__ret_gu), "=r" (__val_gu),		\
  			ASM_CALL_CONSTRAINT				\
  		     : "0" (ptr), "i" (sizeof(*(ptr))));		\
-@@ -183,7 +183,7 @@
+@@ -183,7 +183,7 @@ __typeof__(__builtin_choose_expr(sizeof(x) > sizeof(0UL), 0ULL, 0UL))
  })
  
  #define __put_user_x(size, x, ptr, __ret_pu)			\
@@ -509,7 +571,7 @@ diff -urN linux-4.18.20/arch/x86/include/asm/uaccess.h linux-4.18.20-new/arch/x8
  		     : "0" ((typeof(*(ptr)))(x)), "c" (ptr) : "ebx")
  
  
-@@ -213,7 +213,7 @@
+@@ -213,7 +213,7 @@ __typeof__(__builtin_choose_expr(sizeof(x) > sizeof(0UL), 0ULL, 0UL))
  		     : : "A" (x), "r" (addr))
  
  #define __put_user_x8(x, ptr, __ret_pu)				\
@@ -518,10 +580,11 @@ diff -urN linux-4.18.20/arch/x86/include/asm/uaccess.h linux-4.18.20-new/arch/x8
  		     : "A" ((typeof(*(ptr)))(x)), "c" (ptr) : "ebx")
  #else
  #define __put_user_asm_u64(x, ptr, retval, errret) \
-diff -urN linux-4.18.20/arch/x86/include/asm/xen/hypercall.h linux-4.18.20-new/arch/x86/include/asm/xen/hypercall.h
---- linux-4.18.20/arch/x86/include/asm/xen/hypercall.h	2018-12-10 01:04:13.000606757 -0500
-+++ linux-4.18.20-new/arch/x86/include/asm/xen/hypercall.h	2018-12-23 13:10:04.423442394 -0500
-@@ -88,9 +88,14 @@
+diff --git a/arch/x86/include/asm/xen/hypercall.h b/arch/x86/include/asm/xen/hypercall.h
+index bfd88261..d63ad7db 100644
+--- a/arch/x86/include/asm/xen/hypercall.h
++++ b/arch/x86/include/asm/xen/hypercall.h
+@@ -88,9 +88,14 @@ struct xen_dm_op_buf;
  
  extern struct { char _entry[32]; } hypercall_page[];
  
@@ -538,7 +601,7 @@ diff -urN linux-4.18.20/arch/x86/include/asm/xen/hypercall.h linux-4.18.20-new/a
  
  #ifdef CONFIG_X86_32
  #define __HYPERCALL_RETREG	"eax"
-@@ -146,7 +151,7 @@
+@@ -146,7 +151,7 @@ extern struct { char _entry[32]; } hypercall_page[];
  ({									\
  	__HYPERCALL_DECLS;						\
  	__HYPERCALL_0ARG();						\
@@ -547,7 +610,7 @@ diff -urN linux-4.18.20/arch/x86/include/asm/xen/hypercall.h linux-4.18.20-new/a
  		      : __HYPERCALL_0PARAM				\
  		      : __HYPERCALL_ENTRY(name)				\
  		      : __HYPERCALL_CLOBBER0);				\
-@@ -157,7 +162,7 @@
+@@ -157,7 +162,7 @@ extern struct { char _entry[32]; } hypercall_page[];
  ({									\
  	__HYPERCALL_DECLS;						\
  	__HYPERCALL_1ARG(a1);						\
@@ -556,7 +619,7 @@ diff -urN linux-4.18.20/arch/x86/include/asm/xen/hypercall.h linux-4.18.20-new/a
  		      : __HYPERCALL_1PARAM				\
  		      : __HYPERCALL_ENTRY(name)				\
  		      : __HYPERCALL_CLOBBER1);				\
-@@ -168,7 +173,7 @@
+@@ -168,7 +173,7 @@ extern struct { char _entry[32]; } hypercall_page[];
  ({									\
  	__HYPERCALL_DECLS;						\
  	__HYPERCALL_2ARG(a1, a2);					\
@@ -565,7 +628,7 @@ diff -urN linux-4.18.20/arch/x86/include/asm/xen/hypercall.h linux-4.18.20-new/a
  		      : __HYPERCALL_2PARAM				\
  		      : __HYPERCALL_ENTRY(name)				\
  		      : __HYPERCALL_CLOBBER2);				\
-@@ -179,7 +184,7 @@
+@@ -179,7 +184,7 @@ extern struct { char _entry[32]; } hypercall_page[];
  ({									\
  	__HYPERCALL_DECLS;						\
  	__HYPERCALL_3ARG(a1, a2, a3);					\
@@ -574,7 +637,7 @@ diff -urN linux-4.18.20/arch/x86/include/asm/xen/hypercall.h linux-4.18.20-new/a
  		      : __HYPERCALL_3PARAM				\
  		      : __HYPERCALL_ENTRY(name)				\
  		      : __HYPERCALL_CLOBBER3);				\
-@@ -190,7 +195,7 @@
+@@ -190,7 +195,7 @@ extern struct { char _entry[32]; } hypercall_page[];
  ({									\
  	__HYPERCALL_DECLS;						\
  	__HYPERCALL_4ARG(a1, a2, a3, a4);				\
@@ -583,7 +646,7 @@ diff -urN linux-4.18.20/arch/x86/include/asm/xen/hypercall.h linux-4.18.20-new/a
  		      : __HYPERCALL_4PARAM				\
  		      : __HYPERCALL_ENTRY(name)				\
  		      : __HYPERCALL_CLOBBER4);				\
-@@ -201,7 +206,7 @@
+@@ -201,7 +206,7 @@ extern struct { char _entry[32]; } hypercall_page[];
  ({									\
  	__HYPERCALL_DECLS;						\
  	__HYPERCALL_5ARG(a1, a2, a3, a4, a5);				\
@@ -592,33 +655,11 @@ diff -urN linux-4.18.20/arch/x86/include/asm/xen/hypercall.h linux-4.18.20-new/a
  		      : __HYPERCALL_5PARAM				\
  		      : __HYPERCALL_ENTRY(name)				\
  		      : __HYPERCALL_CLOBBER5);				\
-diff -urN linux-4.18.20/arch/x86/Kconfig linux-4.18.20-new/arch/x86/Kconfig
---- linux-4.18.20/arch/x86/Kconfig	2018-12-10 01:04:12.996606714 -0500
-+++ linux-4.18.20-new/arch/x86/Kconfig	2018-12-23 13:02:22.481703137 -0500
-@@ -2238,9 +2238,18 @@
- 	select DYNAMIC_MODULE_BASE
- 	select MODULE_REL_CRCS if MODVERSIONS
- 
-+config X86_PIC
-+	bool
-+	depends on X86_64
-+	default y
-+	select MODULE_REL_CRCS if MODVERSIONS
-+	---help---
-+	  Compile position-independent DLL modules which can
-+          be placed anywhere in the 64-bit address space.
-+
- config RANDOMIZE_BASE_LARGE
- 	bool "Increase the randomization range of the kernel image"
--	depends on X86_64 && RANDOMIZE_BASE
-+	depends on X86_64 && RANDOMIZE_BASE && X86_PIC
- 	select X86_PIE
- 	select X86_MODULE_PLTS if MODULES
- 	default n
-diff -urN linux-4.18.20/arch/x86/kernel/ftrace.c linux-4.18.20-new/arch/x86/kernel/ftrace.c
---- linux-4.18.20/arch/x86/kernel/ftrace.c	2018-12-10 01:04:13.008606842 -0500
-+++ linux-4.18.20-new/arch/x86/kernel/ftrace.c	2018-12-23 13:02:22.481703137 -0500
-@@ -144,13 +144,6 @@
+diff --git a/arch/x86/kernel/ftrace.c b/arch/x86/kernel/ftrace.c
+index 2194a5d3..f9170205 100644
+--- a/arch/x86/kernel/ftrace.c
++++ b/arch/x86/kernel/ftrace.c
+@@ -144,13 +144,6 @@ ftrace_modify_initial_code(unsigned long ip, unsigned const char *old_code,
  {
  	unsigned char replaced[MCOUNT_INSN_SIZE + 1];
  
@@ -632,7 +673,7 @@ diff -urN linux-4.18.20/arch/x86/kernel/ftrace.c linux-4.18.20-new/arch/x86/kern
  	ftrace_expected = old_code;
  
  	/* Ensure the instructions point to a call to the GOT */
-@@ -159,9 +152,12 @@
+@@ -159,9 +152,12 @@ ftrace_modify_initial_code(unsigned long ip, unsigned const char *old_code,
  		return -EFAULT;
  	}
  
@@ -647,10 +688,11 @@ diff -urN linux-4.18.20/arch/x86/kernel/ftrace.c linux-4.18.20-new/arch/x86/kern
  	}
  
  	/*
-diff -urN linux-4.18.20/arch/x86/kernel/machine_kexec_64.c linux-4.18.20-new/arch/x86/kernel/machine_kexec_64.c
---- linux-4.18.20/arch/x86/kernel/machine_kexec_64.c	2018-12-10 01:04:13.004606798 -0500
-+++ linux-4.18.20-new/arch/x86/kernel/machine_kexec_64.c	2018-12-23 13:02:22.481703137 -0500
-@@ -496,6 +496,10 @@
+diff --git a/arch/x86/kernel/machine_kexec_64.c b/arch/x86/kernel/machine_kexec_64.c
+index 4c8acdfd..6638d1ed 100644
+--- a/arch/x86/kernel/machine_kexec_64.c
++++ b/arch/x86/kernel/machine_kexec_64.c
+@@ -496,6 +496,10 @@ int arch_kexec_apply_relocations_add(struct purgatory_info *pi,
  			value -= (u64)address;
  			*(u32 *)location = value;
  			break;
@@ -661,10 +703,19 @@ diff -urN linux-4.18.20/arch/x86/kernel/machine_kexec_64.c linux-4.18.20-new/arc
  		default:
  			pr_err("Unknown rela relocation: %llu\n",
  			       ELF64_R_TYPE(rel[i].r_info));
-diff -urN linux-4.18.20/arch/x86/kernel/module.c linux-4.18.20-new/arch/x86/kernel/module.c
---- linux-4.18.20/arch/x86/kernel/module.c	2018-12-10 01:04:13.004606798 -0500
-+++ linux-4.18.20-new/arch/x86/kernel/module.c	2018-12-23 13:05:59.980604384 -0500
-@@ -90,6 +90,12 @@
+diff --git a/arch/x86/kernel/module.c b/arch/x86/kernel/module.c
+index 88895f3d..6721bbef 100644
+--- a/arch/x86/kernel/module.c
++++ b/arch/x86/kernel/module.c
+@@ -37,6 +37,7 @@
+ #include <asm/pgtable.h>
+ #include <asm/setup.h>
+ #include <asm/unwind.h>
++#include <asm/insn.h>
+ 
+ #if 0
+ #define DEBUGP(fmt, ...)				\
+@@ -90,6 +91,12 @@ static u64 find_got_kernel_entry(Elf64_Sym *sym, const Elf64_Rela *rela)
  
  	return 0;
  }
@@ -677,7 +728,7 @@ diff -urN linux-4.18.20/arch/x86/kernel/module.c linux-4.18.20-new/arch/x86/kern
  
  static u64 module_emit_got_entry(struct module *mod, void *loc,
  				 const Elf64_Rela *rela, Elf64_Sym *sym)
-@@ -111,7 +117,7 @@
+@@ -111,7 +118,7 @@ static u64 module_emit_got_entry(struct module *mod, void *loc,
  	 * relocations are sorted, this will be the last entry we allocated.
  	 * (if one exists).
  	 */
@@ -686,7 +737,7 @@ diff -urN linux-4.18.20/arch/x86/kernel/module.c linux-4.18.20-new/arch/x86/kern
  		ret = (u64)&got[i - 1];
  	} else {
  		gotsec->got_num_entries++;
-@@ -156,6 +162,8 @@
+@@ -156,6 +163,8 @@ static unsigned int count_gots(Elf64_Sym *syms, Elf64_Rela *rela, int num)
  
  	for (i = 0; i < num; i++) {
  		switch (ELF64_R_TYPE(rela[i].r_info)) {
@@ -695,7 +746,136 @@ diff -urN linux-4.18.20/arch/x86/kernel/module.c linux-4.18.20-new/arch/x86/kern
  		case R_X86_64_GOTPCREL:
  			s = syms + ELF64_R_SYM(rela[i].r_info);
  
-@@ -243,7 +251,6 @@
+@@ -172,6 +181,119 @@ static unsigned int count_gots(Elf64_Sym *syms, Elf64_Rela *rela, int num)
+ 	return ret;
+ }
+ 
++/*
++ * call *foo@GOTPCREL(%rip) ---> call foo nop
++ * jmp *foo@GOTPCREL(%rip)  ---> jmp foo nop
++ * */
++static int do_relax_R_X86_64_GOTPCRELX(Elf64_Rela *rel, void *loc)
++{
++	struct insn insn;
++	void *ins_addr = loc - 2;
++
++	kernel_insn_init(&insn, ins_addr, MAX_INSN_SIZE);
++	insn_get_length(&insn);
++
++	/* 1 byte for opcode, 1 byte for modrm, 4 bytes for m32 */
++	if (insn.length != 6 || insn.opcode.value != 0xFF)
++		return -1;
++
++	switch (insn.modrm.value) {
++	case 0x15: /* CALL */
++		*(u8 *)ins_addr = 0xe8;
++		break;
++	case 0x25: /* JMP */
++		*(u8 *)ins_addr = 0xe9;
++		break;
++	default:
++		return -1;
++	}
++	memset(ins_addr + 1, 0, 4);
++	*((u8 *)ins_addr + 5) = 0x90; /* NOP */
++
++	/* Update the relocation */
++	rel->r_info &= ~ELF64_R_TYPE(~0LU);
++	rel->r_info |= R_X86_64_PC32;
++	rel->r_offset--;
++
++	return 0;
++}
++
++
++/*
++ * mov foo@GOTPCREL(%rip), %reg ---> lea foo(%rip), %reg
++ * */
++static int do_relax_R_X86_64_REX_GOTPCRELX(Elf64_Rela *rel, void *loc)
++{
++	struct insn insn;
++	void *ins_addr = loc - 3;
++
++	kernel_insn_init(&insn, ins_addr, MAX_INSN_SIZE);
++	insn_get_length(&insn);
++	/* 1 byte for REX, 1 byte for opcode, 1 byte for modrm, 4 bytes for m32 */
++	if (insn.length != 7)
++		return -1;
++	/* Not the MOV instruction, could be ADD, SUB etc. */
++	if (insn.opcode.value != 0x8b)
++		return 0;
++	*((u8 *)ins_addr + 1) = 0x8d; /* LEA */
++
++	/* Update the relocation */
++	rel->r_info &= ~ELF64_R_TYPE(~0LU);
++	rel->r_info |= R_X86_64_PC32;
++
++	return 0;
++}
++
++static int apply_relaxations(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs, struct module *mod)
++{
++	Elf64_Sym *syms = NULL;
++	int i,j;
++
++	for (i = 0; i < ehdr->e_shnum; i++) {
++		if (sechdrs[i].sh_type == SHT_SYMTAB) {
++			syms = (Elf64_Sym *)sechdrs[i].sh_addr;
++		}
++	}
++
++	if (!syms) {
++		pr_err("%s: module symtab section missing\n", mod->name);
++		return -ENOEXEC;
++	}
++
++	for (i = 0; i < ehdr->e_shnum; i++) {
++		Elf64_Rela *rels = (void *)ehdr + sechdrs[i].sh_offset;
++
++		if (sechdrs[i].sh_type != SHT_RELA)
++			continue;
++
++		for (j = 0; j < sechdrs[i].sh_size / sizeof(*rels); j++) {
++			Elf64_Rela *rel = &rels[j];
++			Elf64_Sym *sym = &syms[ELF64_R_SYM(rel->r_info)];
++			void *loc = (void *)sechdrs[sechdrs[i].sh_info].sh_addr
++					+ rel->r_offset;
++
++			if (sym->st_value != 0) {
++				/* is local symbol */
++				switch (ELF64_R_TYPE(rel->r_info)) {
++				case R_X86_64_GOTPCRELX:
++					if (do_relax_R_X86_64_GOTPCRELX(rel, loc))
++						BUG();
++					break;
++				case R_X86_64_REX_GOTPCRELX:
++					if (do_relax_R_X86_64_REX_GOTPCRELX(rel, loc))
++						BUG();
++					break;
++				case R_X86_64_GOTPCREL:
++					/* cannot be relaxed, ignore it */
++					break;
++				}
++			}
++		}
++	}
++
++	return 0;
++}
++
+ /*
+  * Generate GOT entries for GOTPCREL relocations that do not exists in the
+  * kernel GOT. Based on arm64 module-plts implementation.
+@@ -185,6 +307,8 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
+ 	char *strings, *name;
+ 	int i;
+ 
++	apply_relaxations(ehdr, sechdrs, mod);
++
+ 	/*
+ 	 * Find the empty .got section so we can expand it to store the PLT
+ 	 * entries. Record the symtab address as well.
+@@ -243,7 +367,6 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
  	}
  	return 0;
  }
@@ -703,7 +883,7 @@ diff -urN linux-4.18.20/arch/x86/kernel/module.c linux-4.18.20-new/arch/x86/kern
  
  void *module_alloc(unsigned long size)
  {
-@@ -358,11 +365,11 @@
+@@ -358,11 +481,11 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
  			if ((s64)val != *(s32 *)loc)
  				goto overflow;
  			break;
@@ -717,7 +897,7 @@ diff -urN linux-4.18.20/arch/x86/kernel/module.c linux-4.18.20-new/arch/x86/kern
  		case R_X86_64_PC32:
  		case R_X86_64_PLT32:
  			if (*(u32 *)loc != 0)
-@@ -373,6 +380,12 @@
+@@ -373,6 +496,12 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
  			    (s64)val != *(s32 *)loc)
  				goto overflow;
  			break;
@@ -730,10 +910,11 @@ diff -urN linux-4.18.20/arch/x86/kernel/module.c linux-4.18.20-new/arch/x86/kern
  		default:
  			pr_err("%s: Unknown rela relocation: %llu\n",
  			       me->name, ELF64_R_TYPE(rel[i].r_info));
-diff -urN linux-4.18.20/arch/x86/kvm/emulate.c linux-4.18.20-new/arch/x86/kvm/emulate.c
---- linux-4.18.20/arch/x86/kvm/emulate.c	2018-12-10 01:04:13.008606842 -0500
-+++ linux-4.18.20-new/arch/x86/kvm/emulate.c	2018-12-23 13:02:22.485703262 -0500
-@@ -428,7 +428,6 @@
+diff --git a/arch/x86/kvm/emulate.c b/arch/x86/kvm/emulate.c
+index 4c4f4263..9f72e2f0 100644
+--- a/arch/x86/kvm/emulate.c
++++ b/arch/x86/kvm/emulate.c
+@@ -428,7 +428,6 @@ static int fastop(struct x86_emulate_ctxt *ctxt, void (*fop)(struct fastop *));
  	FOP_RET
  
  asm(".pushsection .fixup, \"ax\"\n"
@@ -741,26 +922,11 @@ diff -urN linux-4.18.20/arch/x86/kvm/emulate.c linux-4.18.20-new/arch/x86/kvm/em
      "kvm_fastop_exception: xor %esi, %esi; ret\n"
      ".popsection");
  
-diff -urN linux-4.18.20/arch/x86/Makefile linux-4.18.20-new/arch/x86/Makefile
---- linux-4.18.20/arch/x86/Makefile	2018-12-10 01:04:12.996606714 -0500
-+++ linux-4.18.20-new/arch/x86/Makefile	2018-12-23 13:02:22.485703262 -0500
-@@ -136,6 +136,12 @@
-         KBUILD_CFLAGS += $(cflags-y)
- 
-         KBUILD_CFLAGS += -mno-red-zone
-+
-+ifdef CONFIG_X86_PIC
-+        KBUILD_CFLAGS_MODULE += -fPIC -fno-plt -mcmodel=small -fno-stack-protector -fvisibility=hidden
-+endif
-+        KBUILD_LDFLAGS_MODULE += -T $(srctree)/arch/x86/kernel/module.lds
-+
- ifdef CONFIG_X86_PIE
-         KBUILD_CFLAGS += -fPIE
-         KBUILD_LDFLAGS_MODULE += -T $(srctree)/arch/x86/kernel/module.lds
-diff -urN linux-4.18.20/arch/x86/tools/relocs.c linux-4.18.20-new/arch/x86/tools/relocs.c
---- linux-4.18.20/arch/x86/tools/relocs.c	2018-12-10 01:04:13.012606883 -0500
-+++ linux-4.18.20-new/arch/x86/tools/relocs.c	2018-12-23 13:02:22.485703262 -0500
-@@ -203,6 +203,7 @@
+diff --git a/arch/x86/tools/relocs.c b/arch/x86/tools/relocs.c
+index a29cccce..67f63f20 100644
+--- a/arch/x86/tools/relocs.c
++++ b/arch/x86/tools/relocs.c
+@@ -203,6 +203,7 @@ static const char *rel_type(unsigned type)
  		REL_TYPE(R_X86_64_NONE),
  		REL_TYPE(R_X86_64_64),
  		REL_TYPE(R_X86_64_PC32),
@@ -768,7 +934,7 @@ diff -urN linux-4.18.20/arch/x86/tools/relocs.c linux-4.18.20-new/arch/x86/tools
  		REL_TYPE(R_X86_64_GOT32),
  		REL_TYPE(R_X86_64_PLT32),
  		REL_TYPE(R_X86_64_COPY),
-@@ -210,6 +211,8 @@
+@@ -210,6 +211,8 @@ static const char *rel_type(unsigned type)
  		REL_TYPE(R_X86_64_JUMP_SLOT),
  		REL_TYPE(R_X86_64_RELATIVE),
  		REL_TYPE(R_X86_64_GOTPCREL),
@@ -777,7 +943,7 @@ diff -urN linux-4.18.20/arch/x86/tools/relocs.c linux-4.18.20-new/arch/x86/tools
  		REL_TYPE(R_X86_64_32),
  		REL_TYPE(R_X86_64_32S),
  		REL_TYPE(R_X86_64_16),
-@@ -866,6 +869,8 @@
+@@ -866,6 +869,8 @@ static int do_reloc64(struct section *sec, Elf_Rel *rel, ElfW(Sym) *sym,
  		offset += per_cpu_load_addr;
  
  	switch (r_type) {
@@ -786,7 +952,7 @@ diff -urN linux-4.18.20/arch/x86/tools/relocs.c linux-4.18.20-new/arch/x86/tools
  	case R_X86_64_GOTPCREL:
  	case R_X86_64_NONE:
  		/* NONE can be ignored. */
-@@ -881,6 +886,14 @@
+@@ -881,6 +886,14 @@ static int do_reloc64(struct section *sec, Elf_Rel *rel, ElfW(Sym) *sym,
  		 */
  		if (is_percpu_sym(sym, symname))
  			add_reloc(&relocs32neg, offset);
@@ -801,9 +967,10 @@ diff -urN linux-4.18.20/arch/x86/tools/relocs.c linux-4.18.20-new/arch/x86/tools
  		break;
  
  	case R_X86_64_32:
-diff -urN linux-4.18.20/arch/x86/xen/xen-head.S linux-4.18.20-new/arch/x86/xen/xen-head.S
---- linux-4.18.20/arch/x86/xen/xen-head.S	2018-12-10 01:04:13.016606927 -0500
-+++ linux-4.18.20-new/arch/x86/xen/xen-head.S	2018-12-23 13:11:59.957110663 -0500
+diff --git a/arch/x86/xen/xen-head.S b/arch/x86/xen/xen-head.S
+index 4418ff0a..ae923ef7 100644
+--- a/arch/x86/xen/xen-head.S
++++ b/arch/x86/xen/xen-head.S
 @@ -13,6 +13,7 @@
  #include <asm/page_types.h>
  #include <asm/percpu.h>
@@ -812,7 +979,7 @@ diff -urN linux-4.18.20/arch/x86/xen/xen-head.S linux-4.18.20-new/arch/x86/xen/x
  
  #include <xen/interface/elfnote.h>
  #include <xen/interface/features.h>
-@@ -66,6 +67,7 @@
+@@ -66,6 +67,7 @@ ENTRY(hypercall_page)
  	.endr
  
  #define HYPERCALL(n) \
@@ -820,34 +987,42 @@ diff -urN linux-4.18.20/arch/x86/xen/xen-head.S linux-4.18.20-new/arch/x86/xen/x
  	.equ xen_hypercall_##n, hypercall_page + __HYPERVISOR_##n * 32; \
  	.type xen_hypercall_##n, @function; .size xen_hypercall_##n, 32
  #include <asm/xen-hypercalls.h>
-diff -urN linux-4.18.20/lib/zstd/entropy_common_dec.c linux-4.18.20-new/lib/zstd/entropy_common_dec.c
---- linux-4.18.20/lib/zstd/entropy_common_dec.c	1969-12-31 19:00:00.000000000 -0500
-+++ linux-4.18.20-new/lib/zstd/entropy_common_dec.c	2018-12-23 13:02:22.485703262 -0500
-@@ -0,0 +1 @@
-+#include "entropy_common.c"
-diff -urN linux-4.18.20/lib/zstd/fse_decompress_dec.c linux-4.18.20-new/lib/zstd/fse_decompress_dec.c
---- linux-4.18.20/lib/zstd/fse_decompress_dec.c	1969-12-31 19:00:00.000000000 -0500
-+++ linux-4.18.20-new/lib/zstd/fse_decompress_dec.c	2018-12-23 13:02:22.485703262 -0500
-@@ -0,0 +1 @@
-+#include "fse_decompress.c"
-diff -urN linux-4.18.20/lib/zstd/Makefile linux-4.18.20-new/lib/zstd/Makefile
---- linux-4.18.20/lib/zstd/Makefile	2018-12-10 01:04:12.516601611 -0500
-+++ linux-4.18.20-new/lib/zstd/Makefile	2018-12-23 13:02:22.485703262 -0500
-@@ -6,4 +6,4 @@
+diff --git a/lib/zstd/Makefile b/lib/zstd/Makefile
+index 7920cbbf..a06834fe 100644
+--- a/lib/zstd/Makefile
++++ b/lib/zstd/Makefile
+@@ -6,4 +6,4 @@ ccflags-y += -O3
  zstd_compress-y := fse_compress.o huf_compress.o compress.o \
  		   entropy_common.o fse_decompress.o zstd_common.o
  zstd_decompress-y := huf_decompress.o decompress.o \
 -		     entropy_common.o fse_decompress.o zstd_common.o
 +		     entropy_common_dec.o fse_decompress_dec.o zstd_common_dec.o
-diff -urN linux-4.18.20/lib/zstd/zstd_common_dec.c linux-4.18.20-new/lib/zstd/zstd_common_dec.c
---- linux-4.18.20/lib/zstd/zstd_common_dec.c	1969-12-31 19:00:00.000000000 -0500
-+++ linux-4.18.20-new/lib/zstd/zstd_common_dec.c	2018-12-23 13:02:22.485703262 -0500
+diff --git a/lib/zstd/entropy_common_dec.c b/lib/zstd/entropy_common_dec.c
+new file mode 100644
+index 00000000..6c245bd7
+--- /dev/null
++++ b/lib/zstd/entropy_common_dec.c
+@@ -0,0 +1 @@
++#include "entropy_common.c"
+diff --git a/lib/zstd/fse_decompress_dec.c b/lib/zstd/fse_decompress_dec.c
+new file mode 100644
+index 00000000..5c3dfde6
+--- /dev/null
++++ b/lib/zstd/fse_decompress_dec.c
+@@ -0,0 +1 @@
++#include "fse_decompress.c"
+diff --git a/lib/zstd/zstd_common_dec.c b/lib/zstd/zstd_common_dec.c
+new file mode 100644
+index 00000000..929ad2ac
+--- /dev/null
++++ b/lib/zstd/zstd_common_dec.c
 @@ -0,0 +1 @@
 +#include "zstd_common.c"
-diff -urN linux-4.18.20/scripts/recordmcount.c linux-4.18.20-new/scripts/recordmcount.c
---- linux-4.18.20/scripts/recordmcount.c	2018-12-10 01:04:12.568602166 -0500
-+++ linux-4.18.20-new/scripts/recordmcount.c	2018-12-23 13:02:22.489703387 -0500
-@@ -453,7 +453,8 @@
+diff --git a/scripts/recordmcount.c b/scripts/recordmcount.c
+index aa71b912..65fe006d 100644
+--- a/scripts/recordmcount.c
++++ b/scripts/recordmcount.c
+@@ -453,7 +453,8 @@ static int make_nop_x86(void *map, size_t const offset)
  /* Swap the stub and nop for a got call if the binary is built with PIE */
  static int is_fake_mcount_x86_x64(Elf64_Rel const *rp)
  {
@@ -857,10 +1032,11 @@ diff -urN linux-4.18.20/scripts/recordmcount.c linux-4.18.20-new/scripts/recordm
  		ideal_nop = ideal_nop6_x86_64;
  		ideal_nop_x86_size = sizeof(ideal_nop6_x86_64);
  		stub_x86 = stub_got_x86;
-diff -urN linux-4.18.20/scripts/sortextable.c linux-4.18.20-new/scripts/sortextable.c
---- linux-4.18.20/scripts/sortextable.c	2018-12-10 01:04:12.568602166 -0500
-+++ linux-4.18.20-new/scripts/sortextable.c	2018-12-23 13:02:22.489703387 -0500
-@@ -238,6 +238,37 @@
+diff --git a/scripts/sortextable.c b/scripts/sortextable.c
+index 365a907f..99d4a857 100644
+--- a/scripts/sortextable.c
++++ b/scripts/sortextable.c
+@@ -238,6 +238,35 @@ static void x86_sort_relative_table(char *extab_image, int image_size)
  	}
  }
  
@@ -874,8 +1050,7 @@ diff -urN linux-4.18.20/scripts/sortextable.c linux-4.18.20-new/scripts/sortexta
 +
 +		w(r(loc) + i, loc);
 +		w(r(loc + 1) + i + 4, loc + 1);
-+		w(r(loc + 2) + i + 8, loc + 2);
-+		w(r(loc + 3) + i + 12, loc + 3);
++		w8(r8((uint64_t *)(loc + 2)) + i + 8, (uint64_t *)(loc + 2));
 +
 +		i += sizeof(uint32_t) * 4;
 +	}
@@ -888,8 +1063,7 @@ diff -urN linux-4.18.20/scripts/sortextable.c linux-4.18.20-new/scripts/sortexta
 +
 +		w(r(loc) - i, loc);
 +		w(r(loc + 1) - (i + 4), loc + 1);
-+		w(r(loc + 2) - (i + 8), loc + 2);
-+		w(r(loc + 3) - (i + 12), loc + 3);
++		w8(r8((uint64_t *)(loc + 2)) - (i + 8), (uint64_t *)(loc + 2));
 +
 +		i += sizeof(uint32_t) * 4;
 +	}
@@ -898,7 +1072,7 @@ diff -urN linux-4.18.20/scripts/sortextable.c linux-4.18.20-new/scripts/sortexta
  static void sort_relative_table(char *extab_image, int image_size)
  {
  	int i;
-@@ -309,9 +340,11 @@
+@@ -309,9 +338,11 @@ do_file(char const *const fname)
  		fail_file();
  		break;
  	case EM_386:
@@ -911,10 +1085,11 @@ diff -urN linux-4.18.20/scripts/sortextable.c linux-4.18.20-new/scripts/sortexta
  
  	case EM_S390:
  	case EM_AARCH64:
-diff -urN linux-4.18.20/tools/objtool/check.c linux-4.18.20-new/tools/objtool/check.c
---- linux-4.18.20/tools/objtool/check.c	2018-12-10 01:04:12.624602762 -0500
-+++ linux-4.18.20-new/tools/objtool/check.c	2018-12-23 13:02:22.489703387 -0500
-@@ -179,7 +179,7 @@
+diff --git a/tools/objtool/check.c b/tools/objtool/check.c
+index f4a25bd1..9029226b 100644
+--- a/tools/objtool/check.c
++++ b/tools/objtool/check.c
+@@ -179,7 +179,7 @@ static int __dead_end_function(struct objtool_file *file, struct symbol *func,
  		return 0;
  
  	insn = find_insn(file, func->sec, func->offset);
@@ -923,7 +1098,7 @@ diff -urN linux-4.18.20/tools/objtool/check.c linux-4.18.20-new/tools/objtool/ch
  		return 0;
  
  	func_for_each_insn_all(file, func, insn) {
-@@ -233,6 +233,8 @@
+@@ -233,6 +233,8 @@ static int __dead_end_function(struct objtool_file *file, struct symbol *func,
  
  static int dead_end_function(struct objtool_file *file, struct symbol *func)
  {
@@ -932,7 +1107,7 @@ diff -urN linux-4.18.20/tools/objtool/check.c linux-4.18.20-new/tools/objtool/ch
  	return __dead_end_function(file, func, 0);
  }
  
-@@ -581,7 +583,7 @@
+@@ -581,7 +583,7 @@ static int add_call_destinations(struct objtool_file *file)
  	struct rela *rela;
  
  	for_each_insn(file, insn) {
@@ -941,7 +1116,7 @@ diff -urN linux-4.18.20/tools/objtool/check.c linux-4.18.20-new/tools/objtool/ch
  			continue;
  
  		rela = find_rela_by_dest_range(insn->sec, insn->offset,
-@@ -590,8 +592,8 @@
+@@ -590,8 +592,8 @@ static int add_call_destinations(struct objtool_file *file)
  			dest_off = insn->offset + insn->len + insn->immediate;
  			insn->call_dest = find_symbol_by_offset(insn->sec,
  								dest_off);
@@ -952,7 +1127,7 @@ diff -urN linux-4.18.20/tools/objtool/check.c linux-4.18.20-new/tools/objtool/ch
  				WARN_FUNC("unsupported intra-function call",
  					  insn->sec, insn->offset);
  				if (retpoline)
-@@ -602,8 +604,9 @@
+@@ -602,8 +604,9 @@ static int add_call_destinations(struct objtool_file *file)
  		} else if (rela->sym->type == STT_SECTION) {
  			insn->call_dest = find_symbol_by_offset(rela->sym->sec,
  								rela->addend+4);
@@ -964,7 +1139,7 @@ diff -urN linux-4.18.20/tools/objtool/check.c linux-4.18.20-new/tools/objtool/ch
  				WARN_FUNC("can't find call dest symbol at %s+0x%x",
  					  insn->sec, insn->offset,
  					  rela->sym->sec->name,
-@@ -836,6 +839,11 @@
+@@ -836,6 +839,11 @@ static int add_switch_table(struct objtool_file *file, struct instruction *insn,
  	struct symbol *pfunc = insn->func->pfunc;
  	unsigned int prev_offset = 0;
  
@@ -976,7 +1151,7 @@ diff -urN linux-4.18.20/tools/objtool/check.c linux-4.18.20-new/tools/objtool/ch
  	list_for_each_entry_from(rela, &file->rodata->rela->rela_list, list) {
  		if (rela == next_table)
  			break;
-@@ -1244,7 +1252,7 @@
+@@ -1244,7 +1252,7 @@ static int decode_sections(struct objtool_file *file)
  
  static bool is_fentry_call(struct instruction *insn)
  {
@@ -985,7 +1160,7 @@ diff -urN linux-4.18.20/tools/objtool/check.c linux-4.18.20-new/tools/objtool/ch
  	    insn->call_dest->type == STT_NOTYPE &&
  	    !strcmp(insn->call_dest->name, "__fentry__"))
  		return true;
-@@ -1889,6 +1897,7 @@
+@@ -1889,6 +1897,7 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
  			return 0;
  
  		case INSN_CALL:
@@ -993,7 +1168,7 @@ diff -urN linux-4.18.20/tools/objtool/check.c linux-4.18.20-new/tools/objtool/ch
  			if (is_fentry_call(insn))
  				break;
  
-@@ -1898,8 +1907,6 @@
+@@ -1898,8 +1907,6 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
  			if (ret == -1)
  				return 1;
  
@@ -1002,7 +1177,7 @@ diff -urN linux-4.18.20/tools/objtool/check.c linux-4.18.20-new/tools/objtool/ch
  			if (!no_fp && func && !has_valid_stack_frame(&state)) {
  				WARN_FUNC("call without frame pointer save/setup",
  					  sec, insn->offset);
-@@ -1929,12 +1936,15 @@
+@@ -1929,12 +1936,15 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
  			break;
  
  		case INSN_JUMP_DYNAMIC:
@@ -1018,7 +1193,7 @@ diff -urN linux-4.18.20/tools/objtool/check.c linux-4.18.20-new/tools/objtool/ch
  
  			return 0;
  
-@@ -2015,6 +2025,11 @@
+@@ -2015,6 +2025,11 @@ static int validate_retpoline(struct objtool_file *file)
  		if (!strcmp(insn->sec->name, ".init.text") && !module)
  			continue;
  
@@ -1030,7 +1205,7 @@ diff -urN linux-4.18.20/tools/objtool/check.c linux-4.18.20-new/tools/objtool/ch
  		WARN_FUNC("indirect %s found in RETPOLINE build",
  			  insn->sec, insn->offset,
  			  insn->type == INSN_JUMP_DYNAMIC ? "jump" : "call");
-@@ -2027,13 +2042,15 @@
+@@ -2027,13 +2042,15 @@ static int validate_retpoline(struct objtool_file *file)
  
  static bool is_kasan_insn(struct instruction *insn)
  {
@@ -1048,9 +1223,10 @@ diff -urN linux-4.18.20/tools/objtool/check.c linux-4.18.20-new/tools/objtool/ch
  		!strcmp(insn->call_dest->name,
  			"__ubsan_handle_builtin_unreachable"));
  }
-diff -urN linux-4.18.20/tools/objtool/special.c linux-4.18.20-new/tools/objtool/special.c
---- linux-4.18.20/tools/objtool/special.c	2018-12-10 01:04:12.624602762 -0500
-+++ linux-4.18.20-new/tools/objtool/special.c	2018-12-23 13:06:35.557749951 -0500
+diff --git a/tools/objtool/special.c b/tools/objtool/special.c
+index 84f001d5..3bd70dcc 100644
+--- a/tools/objtool/special.c
++++ b/tools/objtool/special.c
 @@ -27,6 +27,7 @@
  #include "warn.h"
  
@@ -1059,7 +1235,7 @@ diff -urN linux-4.18.20/tools/objtool/special.c linux-4.18.20-new/tools/objtool/
  #define EX_ORIG_OFFSET		0
  #define EX_NEW_OFFSET		4
  
-@@ -78,6 +79,33 @@
+@@ -78,6 +79,33 @@ struct special_entry entries[] = {
  	{},
  };
  
@@ -1093,7 +1269,7 @@ diff -urN linux-4.18.20/tools/objtool/special.c linux-4.18.20-new/tools/objtool/
  static int get_alt_entry(struct elf *elf, struct special_entry *entry,
  			 struct section *sec, int idx,
  			 struct special_alt *alt)
-@@ -152,7 +180,7 @@
+@@ -152,7 +180,7 @@ static int get_alt_entry(struct elf *elf, struct special_entry *entry,
   */
  int special_get_alts(struct elf *elf, struct list_head *alts)
  {
@@ -1102,7 +1278,7 @@ diff -urN linux-4.18.20/tools/objtool/special.c linux-4.18.20-new/tools/objtool/
  	struct section *sec;
  	unsigned int nr_entries;
  	struct special_alt *alt;
-@@ -160,7 +188,11 @@
+@@ -160,7 +188,11 @@ int special_get_alts(struct elf *elf, struct list_head *alts)
  
  	INIT_LIST_HEAD(alts);
  
