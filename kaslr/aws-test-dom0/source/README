@@ -10,6 +10,10 @@ pie-patch-mailing-list.patch
 
 pic-modules-support.patch
 
+For ENA module re-randomization support, apply further on top of it:
+
+kaslr.patch
+
 4. Use the kernel configuration (Dom0):
 
 config-aws
