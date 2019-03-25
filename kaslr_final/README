@@ -20,7 +20,7 @@ applies to this patch.
 
 The original Linux kernel license applies to this patch, except our SMR code.
 Our patch also includes SMR (Safe Memory Reclamation) which comes from our
-different project and is licensed under 2-clause BSD.
+different project and is licensed under BSD-2-Clause.
 
 Instructions:
 -----------
