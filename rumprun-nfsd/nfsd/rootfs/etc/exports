@@ -1,3 +1,2 @@
-/disk/nfs -network 192.168.0.0 -mask 255.255.255.0 -mapall=root:root
-/disk/nfs -network 192.168.0.0 -mask 255.255.255.0 -mapall=1000:1000
-/disk/nfs -network 10.0.5.0 -mask 255.255.254.0 -mapall=-2:-2
+/disk/nfs -network 192.168.0.0 -mask 255.255.255.0 -mapall=-2:-2
+/disk/nfs -network 0.0.0.0 -mask 0.0.0.0 -mapall=-2:-2
