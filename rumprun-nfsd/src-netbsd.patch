@@ -1,7 +1,28 @@
-diff -urN ../src-netbsd/sys/lib/libunwind/AddressSpace.hpp src-netbsd/sys/lib/libunwind/AddressSpace.hpp
---- ../src-netbsd/sys/lib/libunwind/AddressSpace.hpp	2018-07-13 14:39:30.528353548 -0400
-+++ src-netbsd/sys/lib/libunwind/AddressSpace.hpp	2018-07-13 14:39:57.524365484 -0400
-@@ -140,7 +140,7 @@
+diff --git a/sys/kern/sys_select.c b/sys/kern/sys_select.c
+index 1fada798..c53cfb5d 100644
+--- a/sys/kern/sys_select.c
++++ b/sys/kern/sys_select.c
+@@ -730,8 +730,13 @@ selnotify(struct selinfo *sip, int events, long knhint)
+ 			 * and will re-poll the descriptors.
+ 			 */
+ 			if (oflag == SEL_BLOCKING && l->l_mutex == lock) {
+-				KASSERT(l->l_wchan == sc);
+-				sleepq_unsleep(l, false);
++				if (l->l_wchan == sc) {
++					sleepq_unsleep(l, false);
++				} else if (l->l_wchan == NULL) {
++					aprint_warning("Warning: l->l_wchan was NULL\n");
++				} else {
++					KASSERT(l->l_wchan == sc);
++				}
+ 			}
+ 		}
+ 		mutex_spin_exit(lock);
+diff --git a/sys/lib/libunwind/AddressSpace.hpp b/sys/lib/libunwind/AddressSpace.hpp
+index 27867445..0470c65f 100644
+--- a/sys/lib/libunwind/AddressSpace.hpp
++++ b/sys/lib/libunwind/AddressSpace.hpp
+@@ -140,7 +140,7 @@ public:
      } while (byte >= 0x80);
      // sign extend negative numbers
      if ((byte & 0x40) != 0)
