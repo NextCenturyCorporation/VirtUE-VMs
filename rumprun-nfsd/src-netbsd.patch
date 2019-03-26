@@ -11,7 +11,7 @@ index 1fada798..c53cfb5d 100644
 +				if (l->l_wchan == sc) {
 +					sleepq_unsleep(l, false);
 +				} else if (l->l_wchan == NULL) {
-+					aprint_warning("Warning: l->l_wchan was NULL\n");
++					aprint_normal("Warning: l->l_wchan was NULL\n");
 +				} else {
 +					KASSERT(l->l_wchan == sc);
 +				}
