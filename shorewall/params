@@ -26,9 +26,11 @@
 #############################
 # System Dependant Variables
 #############################
-INT_NET=eth0 # Interface that connects to the internet
+INT_NET=enp0s25 # Interface that connects to the internet # 
 XEN_BR=xenbr0   # Name of the xen bridge
 NFS_SERVER=192.168.0.2
+DHCP_SERVER=192.168.0.3
+DHCP_HTTP_PORT=6789
 
 #############################
 # Configuration Variables

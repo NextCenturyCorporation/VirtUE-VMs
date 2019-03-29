@@ -23,7 +23,7 @@
 #############################
 # SSH
 #############################
-SSH(ACCEPT)	 net		$FW   # Allow SSH to DOM0
+SSH(ACCEPT)  net		$FW   # Allow SSH to DOM0
 SSH(ACCEPT)  $FW		xenbr # Allow SSH to DomUs from Dom0
 SSH(ACCEPT)  net		xenbr # Allow SSH to DomUs from external network, requested by next-century
 
@@ -38,8 +38,18 @@ Ping(ACCEPT) $FW        xenbr # Allow Dom0 to ping DomUs
 DNS(ACCEPT)  all        all   # Allow DNS
 
 #############################
+# Default - xdef
+#############################
+#### NFS ####
+ACCEPT  xdef          xnfs    tcp     $NFS_PORTS 
+ACCEPT  xdef          xnfs    udp     $NFS_PORTS
+
+#############################
 # Linux Corporate Email User - xeml
 #############################
+#### NFS ####
+ACCEPT  xeml          xnfs    tcp     $NFS_PORTS 
+ACCEPT  xeml          xnfs    udp     $NFS_PORTS
 #### Web ####
 HTTP(ACCEPT)  xeml    all
 HTTPS(ACCEPT) xeml    all
@@ -51,6 +61,9 @@ ACCEPT  xeml          net     tcp     $SMTP_PORTS
 #############################
 # Linux Power User - xpow
 #############################
+#### NFS ####
+ACCEPT  xpow          xnfs    tcp     $NFS_PORTS 
+ACCEPT  xpow          xnfs    udp     $NFS_PORTS
 #### Web ####
 HTTP(ACCEPT)  xpow    all
 HTTPS(ACCEPT) xpow    all
@@ -60,13 +73,13 @@ ACCEPT        xpow    net     tcp     $IMAP_PORTS
 ACCEPT        xpow    net     tcp     $SMTP_PORTS
 #### FTP ####
 FTP(ACCEPT)   xpow    all
+ACCEPT        xpow    net     tcp     1024:65535# Passive Port Range
 #### SSH ####
 SSH(ACCEPT)   xpow    all
 
 #############################
 # Linux God Mode - xgod
 #############################
-
 
 #############################
 # These ports need to be open between all AWS instances and all VMs
@@ -87,6 +100,11 @@ ACCEPT  all     xenbr:$NFS_SERVER     udp     $NFS_PORTS
 #############################
 DNAT    net     xenbr:$NFS_SERVER     tcp     $NFS_PORTS
 DNAT    net     xenbr:$NFS_SERVER     udp     $NFS_PORTS
+
+#############################
+# Access to DHCP Server HTTP Interface
+#############################
+ACCEPT $FW xenbr:$DHCP_SERVER tcp $DHCP_HTTP_PORT
 
 # Drop packets in the INVALID state
 

@@ -17,6 +17,7 @@ fw	          firewall
 net           ipv4
 xenbr         ipv4
 xnfs:xenbr    bport
+xdef:xenbr    bport
 xeml:xenbr    bport
 xpow:xenbr    bport
 xgod:xenbr    bport

@@ -17,6 +17,7 @@
 net     $INT_NET           dhcp,tcpflags,logmartians,nosmurfs,sourceroute=0
 xenbr	$XEN_BR            bridge,dhcp
 xnfs    $XEN_BR:vif-nfs
+xdef    $XEN_BR:vif-def+
 xeml    $XEN_BR:vif-email+
 xpow    $XEN_BR:vif-pow+
 xgod    $XEN_BR:vif-god+
