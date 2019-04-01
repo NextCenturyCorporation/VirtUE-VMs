@@ -1,3 +1,5 @@
+Author: Hassan Nadeem (Virginia Tech)
+
 # Requirements
 `pip install polling`
 

@@ -1,5 +1,6 @@
 # virtue-shorewall
 
+Author: Hassan Nadeem (Virginia Tech)
 
 ## Installation
 `apt-get install shorewall`

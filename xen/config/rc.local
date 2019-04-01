@@ -7,11 +7,12 @@
 touch /var/lock/subsys/local
 
 export RUMPRUN_PATH="/home/ec2-user/rumprun/rumprun/bin"
+modprobe randmod module_name=ena rand_period=100 manual_unmap=0
 
 # setup bridge and start xen
 /home/ec2-user/bridge.sh
 service xencommons start
 
 # Start unikernels
-(cd /home/ec2-user/rumprun/nfsd && ./start.sh &)
+(cd /home/ec2-user/rumprun/nfsd && ./start_persistent_storage.sh &)
 (cd /home/ec2-user/rumprun/dhcp-server && PATH="${PATH}:${RUMPRUN_PATH}" ./start.sh &)

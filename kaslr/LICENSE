@@ -1,0 +1,22 @@
+1. The Linux Kernel is provided under:
+
+	SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
+
+Being under the terms of the GNU General Public License version 2 only,
+according with:
+
+	LINUX_LICENSES/preferred/GPL-2.0
+
+With an explicit syscall exception, as stated at:
+
+	LINUX_LICENSES/exceptions/Linux-syscall-note
+
+2. The SMR code provided in kaslr.patch uses BSD-2-Clause:
+
+	LINUX_LICENSES/preferred/BSD-2-Clause
+
+3. In addition, other licenses may also apply. Please see:
+
+	Documentation/process/license-rules.rst
+
+for more details.
