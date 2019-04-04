@@ -14,7 +14,7 @@ roles=( ["default"]="vif-def" ["email"]="vif-email" ["power"]="vif-pow" ["god"]=
 # This is the default role when no role is specified
 DOM_ROLE="default"
 
-if [ "$#" = "0" ]
+if [ "$#" = "1" ]
 then
 	echo "Domain name will be randomly selected"
 	RANDOM_NUMBER=0
@@ -31,26 +31,32 @@ then
 			break
 		fi
 	done
-
-elif [ "$#" -gt "2" ]
+elif [ "$#" = "0" ]
 then
-	echo "Usage create.sh <domain name> <role>"
+	echo "Usage create.sh <template> <domain name> <role>"
+	exit
+
+elif [ "$#" -gt "3" ]
+then
+	echo "Usage create.sh <template> <domain name> <role>"
 	exit
 fi
 
-if [ "$#" -gt "0" ]
+TEMPLATE_PATH="$1"
+
+if [ "$#" -gt "2" ]
 then
-	if [ "$1" = "master" ]
+	if [ "$2" = "master" ]
 	then
 		echo "Dom name should not be master"
 		exit
 	fi
-	DOM_NAME="$1"
+	DOM_NAME="$2"
 fi
 
 if [ "$#" = "2" ]
 then
-    DOM_ROLE="$2"
+    DOM_ROLE="$3"
 fi
 
 if [ -z ${roles["$DOM_ROLE"]} ]
@@ -74,7 +80,7 @@ mkdir ${DOM_NAME}
 
 CURRENT_PATH=`pwd`
 # Master domain's path
-MASTER_PATH="${CURRENT_PATH}/master"
+MASTER_PATH="${CURRENT_PATH}/${TEMPLATE_PATH}"
 # App domains' path
 DOM_PATH="${CURRENT_PATH}/${DOM_NAME}"
 
@@ -92,9 +98,9 @@ qemu-img create -f qcow2 -b ${MASTER_PATH}/swap.qcow2 ${DOM_PATH}/${DOM_NAME}_sw
 #
 #  Kernel + memory size
 #
-kernel      = '${MASTER_PATH}/vmlinuz-4.15.0-39-generic'
+kernel      = '${MASTER_PATH}/vmlinuz-4.2.0-42-generic'
 extra       = 'elevator=noop'
-ramdisk     = '${MASTER_PATH}/initrd.img-4.15.0-39-generic'
+ramdisk     = '${MASTER_PATH}/initrd.img-4.2.0-42-generic'
 
 vcpus       = '$DOM_VCPU'
 memory      = '$DOM_MEM'
