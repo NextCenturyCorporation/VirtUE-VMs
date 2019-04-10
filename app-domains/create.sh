@@ -98,9 +98,9 @@ qemu-img create -f qcow2 -b ${MASTER_PATH}/swap.qcow2 ${DOM_PATH}/${DOM_NAME}_sw
 #
 #  Kernel + memory size
 #
-kernel      = '${MASTER_PATH}/vmlinuz-4.2.0-42-generic'
+kernel      = '${MASTER_PATH}/vmlinuz-4.18.0-041800-generic'
 extra       = 'elevator=noop'
-ramdisk     = '${MASTER_PATH}/initrd.img-4.2.0-42-generic'
+ramdisk     = '${MASTER_PATH}/initrd.img-4.18.0-041800-generic'
 
 vcpus       = '$DOM_VCPU'
 memory      = '$DOM_MEM'
