@@ -16,45 +16,45 @@ DOM_ROLE="default"
 
 if [ "$#" = "1" ]
 then
-	echo "Domain name will be randomly selected"
-	RANDOM_NUMBER=0
-	while true
-	do
-		RANDOM_NUMBER=$((RANDOM_NUMBER + 1))
-		DOM_NAME="app-domain-$RANDOM_NUMBER"
-		DUPLICATE=`kvget $DOM_NAME`
-		if [ "$DUPLICATE" = "1" ]
-		then
-			continue
-		else
-			echo "Domain name is selected as $DOM_NAME"
-			break
-		fi
-	done
+        echo "Domain name will be randomly selected"
+        RANDOM_NUMBER=0
+        while true
+        do
+                RANDOM_NUMBER=$((RANDOM_NUMBER + 1))
+                DOM_NAME="app-domain-$RANDOM_NUMBER"
+                DUPLICATE=`kvget $DOM_NAME`
+                if [ "$DUPLICATE" = "1" ]
+                then
+                        continue
+                else
+                        echo "Domain name is selected as $DOM_NAME"
+                        break
+                fi
+        done
 elif [ "$#" = "0" ]
 then
-	echo "Usage create.sh <template> <domain name> <role>"
-	exit
+        echo "Usage create.sh <tempalte> <domain name> <role>"
+        exit
 
 elif [ "$#" -gt "3" ]
 then
-	echo "Usage create.sh <template> <domain name> <role>"
-	exit
+        echo "Usage create.sh <template> <domain name> <role>"
+        exit
 fi
 
 TEMPLATE_PATH="$1"
 
 if [ "$#" -gt "2" ]
 then
-	if [ "$2" = "master" ]
-	then
-		echo "Dom name should not be master"
-		exit
-	fi
-	DOM_NAME="$2"
+        if [ "$2" = "master" ]
+        then
+                echo "Dom name should not be master"
+                exit
+        fi
+        DOM_NAME="$2"
 fi
 
-if [ "$#" = "2" ]
+if [ "$#" = "3" ]
 then
     DOM_ROLE="$3"
 fi
@@ -98,9 +98,9 @@ qemu-img create -f qcow2 -b ${MASTER_PATH}/swap.qcow2 ${DOM_PATH}/${DOM_NAME}_sw
 #
 #  Kernel + memory size
 #
-kernel      = '${MASTER_PATH}/vmlinuz-4.18.0-041800-generic'
+kernel      = '${MASTER_PATH}/vmlinuz-4.2.0-42-generic'
 extra       = 'elevator=noop'
-ramdisk     = '${MASTER_PATH}/initrd.img-4.18.0-041800-generic'
+ramdisk     = '${MASTER_PATH}/initrd.img-4.2.0-42-generic'
 
 vcpus       = '$DOM_VCPU'
 memory      = '$DOM_MEM'
