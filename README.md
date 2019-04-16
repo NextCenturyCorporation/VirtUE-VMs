@@ -1,3 +1,9 @@
+# VirtUE-VMs
+
+Authors: Ruslan Nikolaev, Mincheol Sung, Hassan Nadeem (Virginia Tech)
+
+## Compiling rumprun unikernels
+
 1. Get rumprun source code
 
 git clone https://github.com/rumpkernel/rumprun
@@ -12,7 +18,7 @@ git submodule update --init
 
 If you hit a compiler error
 src-netbsd/sys/lib/libunwind/AddressSpace.hpp:143
-just replace (-1LL) with (uint64_t) (-1LL)
+just replace (-1LL) with (uint64\_t) (-1LL)
 
 3. You may also need to copy Xen headers if they were installed to
 /usr/local/include as follows:
