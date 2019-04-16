@@ -1,5 +1,7 @@
 # Information about patches and licenses
 
+Authors: Hassan Nadeem, Ruslan Nikolaev (Virginia Tech)
+
 1. The PIE patch was originally found on the kernel-hardening mailing
 list (it is partially used by our PIC patch; however, we do *not* enable PIE):
 

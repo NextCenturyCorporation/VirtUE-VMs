@@ -1,14 +1,18 @@
-The rumprun-based unikernel by Ruslan Nikolaev, Mincheol Sung (Virginia Tech)
+A rumprun-based unikernel
 
-INSTALLATION:
+Authors: Ruslan Nikolaev, Mincheol Sung (Virginia Tech)
+
+# Installation
 
 1. Prepare rumprun (as described in the rumprun instructions)
 
 2. Patch rumprun-bake.conf to support NFS:
 
 cd rumprun
+
 patch -p1 < rumprun-bake-nfsd.patch
-patch -p1 < rumprun-persistent_storage.patch
+
+patch -p1 < rumprun-persistent\_storage.patch
 
 Also copy nfsd subdirectory to rumprun
 
@@ -24,7 +28,10 @@ Also copy nfsd subdirectory to rumprun
 
 
 To mount in Linux VM:
+
 sudo mount -t nfs 192.168.0.2:/disk/nfs <directory_to_mount_to>
 
+
 To see all exports in Linux VM:
+
 sudo showmount -e 192.168.0.2
